@@ -1,5 +1,6 @@
 import random
 import copy
+from itertools import product
 
 import numpy as np
 from shapely.geometry import Polygon, MultiPolygon
@@ -8,10 +9,13 @@ from shapely.affinity import translate
 
 from gimpfu import *
 
-accuracy = 10
+from hooke import hooke
 
-def get_random_position(iw, ih):
-    return random.randint(0, iw), random.randint(0, ih)
+
+def get_random_positions(iw, ih, grid_resolution):
+    res = list(product(range(0, iw, grid_resolution), range(0, ih, grid_resolution)))
+    random.shuffle(res)
+    return res
 
 def bounding_polygon(alpha, threshold, tolerance, stroke_width):
     # in some reason alpha is already transposed
@@ -94,7 +98,7 @@ def polygon_intersection(c_polygon):
 def min_distance_from_same(p):
     return min(polygon.distance(p) for polygon in filled.same)
 
-def place_polygon(p, iw, ih, max_attempts, initial_step, target):
+def place_polygon(p, iw, ih, grid_resolution, initial_step, target, force_closer, accuracy, pcb):
     def check_pos(x, y):
         polygon = translate(p, x, y)
         res = polygon_intersection(polygon)
@@ -105,73 +109,25 @@ def place_polygon(p, iw, ih, max_attempts, initial_step, target):
                 res = -min_distance_from_same(polygon)
         return res
 
-    def iter_check(res, *v):
-        res_cur = [(p, check_pos(*p)) for p in v]
-        if all(res <= r[1] for r in res_cur):
-            raise Exception
-        return min(res_cur, key=lambda x: x[1])
-
-    step_x = None
-    step_y = None
-
-    def check_steps(res):
-        rt = res + target
-        if rt < 0:
-            return step_x > accuracy, step_y > accuracy
-        return rt < step_x, rt < step_y
-
     best = (0, None)
         
-    for _ in range(max_attempts):
-        pos = get_random_position(iw, ih)
+    positions = get_random_positions(iw, ih, grid_resolution)
+    s = len(positions)
 
-        step_x = initial_step
-        step_y = initial_step
-        res = check_pos(*pos)
-
-        x_iter = True
-        y_iter = True
-
-        while res > -target:
-            if x_iter:
-                try:
-                    pos, res = iter_check(res, (pos[0] + step_x, pos[1]), (pos[0] - step_x, pos[1]))
-                except Exception:
-                    c = check_steps(res)
-                    if c[0]:
-                        step_x //= 4
-                        step_x *= 3
-                    elif not c[0] and not c[1]:
-                        break
-                    else:
-                        x_iter = False
-                        if not y_iter:
-                            break
-
-            if y_iter:
-                try:
-                    pos, res = iter_check(res, (pos[0], pos[1] + step_y), (pos[0], pos[1] - step_y))
-                except Exception:
-                    c = check_steps(res)
-                    if c[1]:
-                        step_y //= 4
-                        step_y *= 3
-                    elif not c[0] and not c[1]:
-                        break
-                    else:
-                        y_iter = False
-                        if not x_iter:
-                            break
-
-            if res < best[0]:
-                best = (res, pos)
+    while len(positions) != 0:
+        pos, res = hooke(check_pos, list(positions.pop(0)), initial_step, accuracy)
+        progress = s - len(positions)
+        if progress % 10 == 0:
+            pcb(progress, s)
 
         if res <= -target:
             polygon = translate(p, *pos)
             filled.append(polygon)
             return pos
+        if best[0] > res:
+            best = (res, pos)
 
-    if best[1] is not None:
+    if force_closer and best[1] is not None:
         polygon = translate(p, *best[1])
         filled.append(polygon)
         return best[1]
@@ -199,8 +155,8 @@ def layer_data(layer):
     return np.frombuffer(region[:, :], dtype=np.uint8).reshape(layer.height, layer.width, 4)
 
 
-def python_random_pattern(img, threshold, copies, allow_reflection, stroke_width, max_attempts, min_angle,
-                          max_angle, simp_level, initial_step, min_distance, progress_callback):
+def python_random_pattern(img, threshold, copies, allow_reflection, stroke_width, grid_resolution, max_angle,
+                          simp_level, initial_step, min_distance, force_closer, accuracy, progress_callback):
     global filled
     filled = Filled(img.width, img.height)
 
@@ -209,7 +165,7 @@ def python_random_pattern(img, threshold, copies, allow_reflection, stroke_width
     rv = randomize_variants(allow_reflection)
 
     def get_polygon(layer):
-        randomize_layer(layer, rv, min_angle, max_angle)
+        randomize_layer(layer, rv, -max_angle, max_angle)
         alpha = layer_data(layer)[:, :, 3]
         return bounding_polygon(alpha, threshold, simp_level, stroke_width)
 
@@ -233,9 +189,11 @@ def python_random_pattern(img, threshold, copies, allow_reflection, stroke_width
         filled.same = []
         for layer, polygon in lt[layers]:
             count += 1
-            pos = place_polygon(polygon, img.width, img.height, max_attempts, initial_step, min_distance)
+            progress = float(count) / total
+            pos = place_polygon(polygon, img.width, img.height, grid_resolution, initial_step, min_distance, force_closer,
+                                accuracy, lambda s, o: progress_callback('Trying in grid node %d of %d' % (s, o), progress))
             if pos == None:
-                progress_callback('Failed to place %d of %d' % (count, total), float(count) / total)
+                progress_callback('Failed to place %d of %d' % (count, total), progress)
                 for_removing.append(layer)
                 continue
             layer.set_offsets(pos[0], pos[1])

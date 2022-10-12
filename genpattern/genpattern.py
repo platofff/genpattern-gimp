@@ -58,21 +58,22 @@ class Plugin:
         self._boundingRectThreshold.set_text(str(shelf['params'][0]))
         if len(self._img.layers) == len(shelf['params'][1]):
             self._layersCopies = shelf['params'][1]
-            self._setLayer()
         self._allowReflection.set_active(shelf['params'][2])
         self._minPadding.set_text(str(shelf['params'][3]))
-        self._maxAttempts.set_text(str(shelf['params'][4]))
-        self._angleLow.set_value(shelf['params'][5])
-        self._angleHigh.set_value(shelf['params'][6])
-        self._simpLevel.set_value(shelf['params'][7])
-        self._initialStep.set_value(shelf['params'][8])
-        self._minDistance.set_text(str(shelf['params'][9]))
+        self._gridResolution.set_text(str(shelf['params'][4]))
+        self._maxAngle.set_value(shelf['params'][5])
+        self._simpLevel.set_value(shelf['params'][6])
+        self._initialStep.set_value(shelf['params'][7])
+        self._minDistance.set_text(str(shelf['params'][8]))
+        self._forceCloser.set_active(shelf['params'][9])
+        self._accuracy.set_text(str(shelf['params'][10]))
 
     def run(self, img, _):
         builder = gtk.Builder()
         builder.add_from_file(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'ui.glade'))
         self._window = builder.get_object('mainwindow')
         self._window.connect('destroy', gtk.main_quit)
+        
         try:
             global python_random_pattern
             from plugin import layer_data, python_random_pattern
@@ -102,12 +103,13 @@ class Plugin:
         self._minPadding = builder.get_object('min_padding')
         self._selectedLayerLabel = builder.get_object('selected_layer')
         self._copiesNumberEntry = builder.get_object('copies_number')
-        self._maxAttempts = builder.get_object('max_attempts')
-        self._angleLow = builder.get_object('angle_low')
-        self._angleHigh = builder.get_object('angle_high')
+        self._gridResolution = builder.get_object('grid_resolution')
+        self._maxAngle = builder.get_object('max_angle')
+        self._forceCloser = builder.get_object('force_closer')
         self._simpLevel = builder.get_object('simp_level')
         self._initialStep = builder.get_object('initial_step')
         self._minDistance = builder.get_object('min_distance')
+        self._accuracy = builder.get_object('accuracy')
 
         self._copiesNumberEntry.connect('value-changed', self._copiesNumberChanged)
         self._sameCopies.connect('toggled', self._toggleSameCopies)
@@ -129,12 +131,12 @@ class Plugin:
             res_pixbuf = gtk.gdk.Pixbuf(gtk.gdk.COLORSPACE_RGB, True, 8, res_width, 64)
             pixbuf.scale(res_pixbuf, 0, 0, res_width, 64, 0, 0, float(res_width) / width, 64.0 / height,
                          gtk.gdk.INTERP_NEAREST)
-            self._layersStore.append([res_pixbuf, img.layers[i].name])
+            self._layersStore.append([res_pixbuf, img.layers[i].name[:25]])
         layersView.connect('selection-changed', self._layerSelectHandler)
-        self._setLayer()
         builder.get_object('run_button').connect('clicked', self._runButtonHandler)
-        self._initParams()
         self._window.show_all()
+        self._initParams()
+        self._setLayer()
         gtk.main()
 
     def _runButtonHandler(self, btn):
@@ -143,13 +145,14 @@ class Plugin:
                             int(self._boundingRectThreshold.get_text()),
                             self._layersCopies,
                             self._allowReflection.get_active(),
-                            float(self._minPadding.get_text()),
-                            int(self._maxAttempts.get_text()),
-                            int(self._angleLow.get_value()),
-                            int(self._angleHigh.get_value()),
+                            int(self._minPadding.get_text()),
+                            int(self._gridResolution.get_text()),
+                            int(self._maxAngle.get_value()),
                             float(self._simpLevel.get_value()),
                             int(self._initialStep.get_value()),
-                            int(self._minDistance.get_text())
+                            int(self._minDistance.get_text()),
+                            self._forceCloser.get_active(),
+                            int(self._accuracy.get_text()),
                         )
 
         python_random_pattern(self._img, *shelf['params'], progress_callback=self._progress_callback)
