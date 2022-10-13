@@ -138,7 +138,7 @@ def randomize_variants(hr):
 
 def randomize_layer(layer, variants, la, ha):
     pdb.gimp_drawable_transform_rotate_default(layer, np.deg2rad(random.randint(la, ha)),
-                                               True, 0, 0, False, TRANSFORM_RESIZE_ADJUST)
+                                               True, 0, 0, True, TRANSFORM_RESIZE_ADJUST)
     variant = random.choice(variants)
 
     if variant == 1:
