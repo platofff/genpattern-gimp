@@ -12,12 +12,25 @@ from gimpfu import *
 from hooke import hooke
 
 
+class Filled:
+    same = []
+
+    def append(self, polygon):
+        self.mp = unary_union([self.mp, polygon])
+        self.same.append(polygon)
+
+    def __init__(self, w, h):
+        w4 = w * 4
+        h4 = h * 4
+        self.mp = MultiPolygon([Polygon([(-w4, -h4), (w4, -h4), (w4, h4), (-w4, h4)],
+                                        holes=[[(0, 0), (0, h), (w, h), (w, 0)]])])
+
 def get_random_positions(iw, ih, grid_resolution):
     res = list(product(range(0, iw, grid_resolution), range(0, ih, grid_resolution)))
     random.shuffle(res)
     return res
 
-def bounding_polygon(alpha, threshold, tolerance, stroke_width):
+def bounding_polygon(alpha, threshold, tolerance, buf_radius):
     # in some reason alpha is already transposed
     res_b = []
     _min = 0
@@ -56,6 +69,8 @@ def bounding_polygon(alpha, threshold, tolerance, stroke_width):
             _max = j
 
     res = res_a + res_b + res_c + res_d
+    if len(res) < 3:
+        return None
     
     res.append(copy.copy(res[0]))
     j = 0
@@ -73,40 +88,25 @@ def bounding_polygon(alpha, threshold, tolerance, stroke_width):
             else:
                 j += 1
     
-    return Polygon(res).buffer(stroke_width).simplify(tolerance)
-
-class Filled:
-    same = []
-
-    def append(self, polygon):
-        self.mp = unary_union([self.mp, polygon])
-        self.same.append(polygon)
-
-    def __init__(self, w, h):
-        w4 = w * 4
-        h4 = h * 4
-        self.mp = MultiPolygon([Polygon([(-w4, -h4), (w4, -h4), (w4, h4), (-w4, h4)],
-                                        holes=[[(0, 0), (0, h), (w, h), (w, 0)]])])
-
-filled = None
+    return Polygon(res).buffer(buf_radius).simplify(tolerance)
 
 
-def polygon_intersection(c_polygon):
+def polygon_intersection(filled, c_polygon):
     return filled.mp.intersection(c_polygon).area
 
 
-def min_distance_from_same(p):
+def min_distance_from_same(filled, p):
     return min(polygon.distance(p) for polygon in filled.same)
 
-def place_polygon(p, iw, ih, grid_resolution, initial_step, target, force_closer, accuracy, pcb):
+def place_polygon(p, iw, ih, grid_resolution, initial_step, target, force_closer, accuracy, pcb, filled):
     def check_pos(x, y):
         polygon = translate(p, x, y)
-        res = polygon_intersection(polygon)
+        res = polygon_intersection(filled, polygon)
         if res == 0:
             if len(filled.same) == 0:
                 res = -target
             else:
-                res = -min_distance_from_same(polygon)
+                res = -min_distance_from_same(filled, polygon)
         return res
 
     best = (0, None)
@@ -155,27 +155,33 @@ def layer_data(layer):
     return np.frombuffer(region[:, :], dtype=np.uint8).reshape(layer.height, layer.width, 4)
 
 
-def python_random_pattern(img, threshold, copies, allow_reflection, stroke_width, grid_resolution, max_angle,
+def gen_pattern(img, threshold, copies, allow_reflection, buf_diameter, grid_resolution, max_angle,
                           simp_level, initial_step, min_distance, force_closer, accuracy, progress_callback):
-    global filled
     filled = Filled(img.width, img.height)
 
     pdb.gimp_image_undo_group_start(img)
     lt = {}
     rv = randomize_variants(allow_reflection)
+    buf_radius = buf_diameter // 2
 
     def get_polygon(layer):
         randomize_layer(layer, rv, -max_angle, max_angle)
         alpha = layer_data(layer)[:, :, 3]
-        return bounding_polygon(alpha, threshold, simp_level, stroke_width)
+        return bounding_polygon(alpha, threshold, simp_level, buf_radius)
 
     count = 0
     total = len(img.layers) + sum(copies)
     for i, layer in enumerate(img.layers):
-        lt.update({i: [(layer, get_polygon(layer))]})
+        if copies[i] == 0:
+            img.remove_layer(layer)
+            continue
+        p = get_polygon(layer)
+        if p is None:
+            continue
+        lt.update({i: [(layer, p)]})
         count += 1
         progress_callback('Computed bounding polygon for layer %d' % (count), float(count) / total)
-        for _ in range(copies[i]):
+        for _ in range(copies[i] - 1):
             new_layer = pdb.gimp_layer_copy(layer, 0)
             new_layer.set_offsets(img.width - new_layer.width, img.height - new_layer.height)
             pdb.gimp_image_insert_layer(img, new_layer, None, 0)
@@ -185,13 +191,14 @@ def python_random_pattern(img, threshold, copies, allow_reflection, stroke_width
 
     count = 0
     for_removing = []
+
     for layers in sorted(lt.keys(), key=lambda x: lt[x][0][1].area, reverse=True):
         filled.same = []
         for layer, polygon in lt[layers]:
             count += 1
             progress = float(count) / total
             pos = place_polygon(polygon, img.width, img.height, grid_resolution, initial_step, min_distance, force_closer,
-                                accuracy, lambda s, o: progress_callback('Trying in grid node %d of %d' % (s, o), progress))
+                                accuracy, lambda s, o: progress_callback('Trying in grid node %d of %d' % (s, o), progress), filled)
             if pos == None:
                 progress_callback('Failed to place %d of %d' % (count, total), progress)
                 for_removing.append(layer)

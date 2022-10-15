@@ -8,7 +8,7 @@ from gimpshelf import shelf
 import gtk
 
 sys.path.append(os.path.abspath(os.path.dirname(sys.argv[0])))
-python_random_pattern = None
+gen_pattern = None
 
 
 class Plugin:
@@ -75,8 +75,8 @@ class Plugin:
         self._window.connect('destroy', gtk.main_quit)
         
         try:
-            global python_random_pattern
-            from plugin import layer_data, python_random_pattern
+            global gen_pattern
+            from plugin import layer_data, gen_pattern
         except ImportError:
             if os.name == 'nt':
                 try:
@@ -155,7 +155,7 @@ class Plugin:
                             int(self._accuracy.get_text()),
                         )
 
-        python_random_pattern(self._img, *shelf['params'], progress_callback=self._progress_callback)
+        gen_pattern(self._img, *shelf['params'], progress_callback=self._progress_callback)
         self._window.destroy()
 
 
