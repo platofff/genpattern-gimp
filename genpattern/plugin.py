@@ -170,7 +170,7 @@ def gen_pattern(img, threshold, copies, allow_reflection, buf_diameter, grid_res
         return bounding_polygon(alpha, threshold, simp_level, buf_radius)
 
     count = 0
-    total = len(img.layers) + sum(copies)
+    total = sum(copies)
     for i, layer in enumerate(img.layers):
         if copies[i] == 0:
             img.remove_layer(layer)

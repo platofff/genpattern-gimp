@@ -2,6 +2,7 @@
 import os
 import sys
 from subprocess import check_call, CalledProcessError
+from time import time
 
 from gimpfu import *
 from gimpshelf import shelf
@@ -154,8 +155,13 @@ class Plugin:
                             self._forceCloser.get_active(),
                             int(self._accuracy.get_text()),
                         )
-
+        start_time = time()
         gen_pattern(self._img, *shelf['params'], progress_callback=self._progress_callback)
+        md = gtk.MessageDialog(self._window, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_INFO, gtk.BUTTONS_CLOSE,
+        'Finished in %f seconds' % (time() - start_time))
+        md.connect('destroy', gtk.main_quit)
+        md.run()
+        md.destroy()
         self._window.destroy()
 
 
