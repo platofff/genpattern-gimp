@@ -524,7 +524,7 @@
             <child>
               <object class="GtkButton" id="run_button">
                 <property name="label" translatable="yes">Run</property>
-                <property name="width_request">50</property>
+                <property name="width_request">75</property>
                 <property name="height_request">35</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>

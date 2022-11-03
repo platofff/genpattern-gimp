@@ -11,6 +11,11 @@ from gimpfu import *
 
 from hooke import hooke
 
+import os
+if os.name == 'nt':
+    from gettext import gettext as lg
+else:
+    from locale import gettext as lg
 
 class Filled:
     same = []
@@ -115,7 +120,7 @@ def place_polygon(p, iw, ih, grid_resolution, initial_step, target, force_closer
     s = len(positions)
 
     while len(positions) != 0:
-        pos, res = hooke(check_pos, list(positions.pop(0)), initial_step, accuracy)
+        pos, res = hooke(check_pos, list(positions.pop(0)), initial_step, accuracy, -target)
         progress = s - len(positions)
         if progress % 10 == 0:
             pcb(progress, s)
@@ -180,14 +185,14 @@ def gen_pattern(img, threshold, copies, allow_reflection, buf_diameter, grid_res
             continue
         lt.update({i: [(layer, p)]})
         count += 1
-        progress_callback('Computed bounding polygon for layer %d' % (count), float(count) / total)
+        progress_callback('%s %d' % (lg('Computed bounding polygon for layer'), count), float(count) / total)
         for _ in range(copies[i] - 1):
             new_layer = pdb.gimp_layer_copy(layer, 0)
             new_layer.set_offsets(img.width - new_layer.width, img.height - new_layer.height)
             pdb.gimp_image_insert_layer(img, new_layer, None, 0)
             lt[i].append((new_layer, get_polygon(new_layer)))
             count += 1
-            progress_callback('Computed bounding polygon for layer %d' % (count), float(count) / total)
+            progress_callback('%s %d' % (lg('Computed bounding polygon for layer'), count), float(count) / total)
 
     count = 0
     for_removing = []
@@ -198,13 +203,13 @@ def gen_pattern(img, threshold, copies, allow_reflection, buf_diameter, grid_res
             count += 1
             progress = float(count) / total
             pos = place_polygon(polygon, img.width, img.height, grid_resolution, initial_step, min_distance, force_closer,
-                                accuracy, lambda s, o: progress_callback('Trying in grid node %d of %d' % (s, o), progress), filled)
+                                accuracy, lambda s, o: progress_callback('%s %d %s %d' % (lg('Trying in grid node'), s, lg('of'), o), progress), filled)
             if pos == None:
-                progress_callback('Failed to place %d of %d' % (count, total), progress)
+                progress_callback('%s %d %s %d' % (lg('Failed to place'), count, lg('of'), total), progress)
                 for_removing.append(layer)
                 continue
             layer.set_offsets(pos[0], pos[1])
-            progress_callback('Placed %d of %d' % (count, total), float(count) / total)
+            progress_callback('%s %d %s %d' % (lg('Placed'), count, lg('of'), total), float(count) / total)
 
     for layer in for_removing:
         img.remove_layer(layer)

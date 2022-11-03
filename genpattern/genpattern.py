@@ -1,14 +1,33 @@
 #!/usr/bin/env python2
 import os
 import sys
+import locale
+import gettext
 from subprocess import check_call, CalledProcessError
-from time import time
 
 from gimpfu import *
 from gimpshelf import shelf
 import gtk
 
-sys.path.append(os.path.abspath(os.path.dirname(sys.argv[0])))
+dir_ = os.path.abspath(os.path.dirname(sys.argv[0]))
+sys.path.append(dir_)
+
+APP = 'genpattern'
+locale.setlocale(locale.LC_ALL, '')
+ldir = os.path.join(dir_, 'locale')
+
+if os.name == 'nt':
+    if os.getenv('LANG') is None:
+        lang, enc = locale.getdefaultlocale()
+        os.environ['LANG'] = lang
+    gettext.bindtextdomain(APP, ldir)
+    gettext.textdomain(APP)
+    lg = gettext.gettext
+else:
+    locale.bindtextdomain(APP, ldir)
+    locale.textdomain(APP)
+    lg = locale.gettext
+
 gen_pattern = None
 
 
@@ -24,10 +43,11 @@ class Plugin:
             gtk.main_iteration()
 
     def _setLayer(self):
-        self._selectedLayerLabel.set_text('Number of copies of layer "%s"' % self._layersStore[self._selectedLayer][1])
+        self._selectedLayerLabel.set_text('%s "%s"' % (lg('Number of copies of layer'), self._layersStore[self._selectedLayer][1]))
         self._copiesNumberEntry.set_text(str(self._layersCopies[self._selectedLayer]))
 
     def _layerSelectHandler(self, view):
+        self._copiesNumberChanged()
         try:
             self._selectedLayer = view.get_selected_items()[0][0]
         except IndexError:
@@ -40,16 +60,16 @@ class Plugin:
         for i in range(len(self._layersCopies)):
             self._layersCopies[i] = copies
 
-    def _copiesNumberChanged(self, entry):
+    def _copiesNumberChanged(self):
         if self._sameCopies.get_active():
             self._setSameCopies()
         else:
-            self._layersCopies[self._selectedLayer] = int(entry.get_text())
+            self._layersCopies[self._selectedLayer] = int(self._copiesNumberEntry.get_text())
 
     def _toggleSameCopies(self, checkButton):
         if checkButton.get_active():
             self._setSameCopies()
-            self._selectedLayerLabel.set_text('Number of copies')
+            self._selectedLayerLabel.set_text(lg('Number of copies'))
         else:
             self._setLayer()
 
@@ -71,7 +91,14 @@ class Plugin:
 
     def run(self, img, _):
         builder = gtk.Builder()
-        builder.add_from_file(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'ui.glade'))
+        builder.set_translation_domain('genpattern')
+        xml_path = os.path.join(dir_, 'ui.glade')
+        if os.name == 'nt':
+            from translatexml import translate_xml
+            translated_xml = translate_xml(xml_path)
+            builder.add_from_string(translated_xml)
+        else:
+            builder.add_from_file(xml_path)
         self._window = builder.get_object('mainwindow')
         self._window.connect('destroy', gtk.main_quit)
         
@@ -112,7 +139,6 @@ class Plugin:
         self._minDistance = builder.get_object('min_distance')
         self._accuracy = builder.get_object('accuracy')
 
-        self._copiesNumberEntry.connect('value-changed', self._copiesNumberChanged)
         self._sameCopies.connect('toggled', self._toggleSameCopies)
 
         layersView = builder.get_object('layers_view')
@@ -142,6 +168,7 @@ class Plugin:
 
     def _runButtonHandler(self, btn):
         btn.set_sensitive(False)
+        self._copiesNumberChanged()
         shelf['params'] = (
                             int(self._boundingRectThreshold.get_text()),
                             self._layersCopies,
@@ -155,13 +182,7 @@ class Plugin:
                             self._forceCloser.get_active(),
                             int(self._accuracy.get_text()),
                         )
-        start_time = time()
         gen_pattern(self._img, *shelf['params'], progress_callback=self._progress_callback)
-        md = gtk.MessageDialog(self._window, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_INFO, gtk.BUTTONS_CLOSE,
-        'Finished in %f seconds' % (time() - start_time))
-        md.connect('destroy', gtk.main_quit)
-        md.run()
-        md.destroy()
         self._window.destroy()
 
 
@@ -174,7 +195,7 @@ register(
     "platofff",
     "platofff",
     "2022",
-    "<Image>/Filters/Artistic/Random pattern texture...",
+    "<Image>/Filters/Artistic/%s..." % lg('Random pattern texture'),
     "RGBA",
     [],
     [],

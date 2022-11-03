@@ -5,7 +5,7 @@ class Continue(BaseException):
     pass
 
 
-def hooke(f, b1, step, accuracy):
+def hooke(f, b1, step, accuracy, target=float('-inf')):
     steps = [step] * len(b1)
 
     def first_phase(b1, change_steps=True):
@@ -39,13 +39,17 @@ def hooke(f, b1, step, accuracy):
 
     while True:
         b2, stop = first_phase(b1)
-        if stop:
-            return b2, f(*b2)
+        res2 = f(*b2)
+        if stop or res2 <= target:
+            return b2, res2
         while True:
             b3 = [b1[i] + 2 * (b2[i] - b1[i]) for i in range(len(b1))]
             b4, _ = first_phase(b3, False)
             try:
-                if f(*b2) > f(*b4):
+                res4 = f(*b4)
+                if f(*b2) > res4:
+                    if res4 <= target:
+                        return b4, res4
                     b1 = b2
                     b2 = b4
                     raise Continue
