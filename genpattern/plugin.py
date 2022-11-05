@@ -36,7 +36,7 @@ def get_random_positions(iw, ih, grid_resolution):
     return res
 
 def bounding_polygon(alpha, threshold, tolerance, buf_radius):
-    # in some reason alpha is already transposed
+    # for some reason alpha is already transposed
     res_b = []
     _min = 0
     for j in range(len(alpha) - 1, -1, -1):
