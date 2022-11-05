@@ -2,11 +2,11 @@
 #include "test_image1._h"
 
 #include <stdarg.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <sys/time.h>
-#include <unistd.h>
 #include <threads.h>
-#include <stdatomic.h>
+#include <unistd.h>
 
 #ifdef __AVX2__
 #include <immintrin.h>
@@ -21,7 +21,6 @@
                   ptr[26 * w], ptr[27 * w], ptr[28 * w], ptr[29 * w],          \
                   ptr[30 * w], ptr[31 * w])
 #endif
-
 
 void extract_polygon(GEOSGeometry **lstring, ImgAlpha *alpha, int8_t t) {
   t--;
@@ -176,7 +175,7 @@ void extract_polygon(GEOSGeometry **lstring, ImgAlpha *alpha, int8_t t) {
 #define WORK_SIZE 56
 
 void convex_polygon(void *_params) {
-  ConvexParams *params = (ConvexParams*)(long)_params;
+  ConvexParams *params = (ConvexParams *)(long)_params;
   while (1) {
     printf("Running thread id: %lu\n", params->thread_id);
     GEOSGeometry *lstring;
@@ -228,7 +227,7 @@ int main() {
     panic("Out of memory");
   }
 
-  ImgAlpha **alpha_ptrs = malloc(WORK_SIZE * sizeof(ImgAlpha*));
+  ImgAlpha **alpha_ptrs = malloc(WORK_SIZE * sizeof(ImgAlpha *));
   if (alpha_ptrs == NULL) {
     panic("Out of memory");
   }
@@ -245,7 +244,8 @@ int main() {
     panic("Out of memory");
   }
 
-  if (mtx_init(&next_work_mtx, mtx_plain) == thrd_error) panic("Failed to init mutex");
+  if (mtx_init(&next_work_mtx, mtx_plain) == thrd_error)
+    panic("Failed to init mutex");
   for (size_t i = 0; i < threads_size; i++) {
     if (i == WORK_SIZE) {
       break;
@@ -255,7 +255,8 @@ int main() {
     work[i].thread_id = i;
     work[i].next_work = &next_work;
     work[i].next_work_mtx = &next_work_mtx;
-    int rc = thrd_create(&threads[i], (thrd_start_t) convex_polygon, (void *)(long)(work + i));
+    int rc = thrd_create(&threads[i], (thrd_start_t)convex_polygon,
+                         (void *)(long)(work + i));
     if (rc != thrd_success) {
       if (rc == thrd_error) {
         perror("Thread creation error");
