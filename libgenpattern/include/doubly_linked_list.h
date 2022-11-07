@@ -1,15 +1,16 @@
-#include <stdlib.h>
 #include "basic_geometry.h"
+#include <stdlib.h>
 
 /*
-    -INFINITY - start element
-     INFINITY - no data
+  Restrictions:
+    dllist_push() after dllist_pop() is not always safe
+    "size" is maximal number of dllist_push() calls
 */
 
 typedef struct {
-    void *prev;
-    void *next;
-    Point value;
+  void *prev;
+  void *next;
+  Point value;
 } DLElement;
 
 DLElement *dllist_alloc(size_t size);

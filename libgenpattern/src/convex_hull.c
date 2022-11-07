@@ -1,5 +1,3 @@
-#include <math.h>
-
 #include "convex_hull.h"
 #include "doubly_linked_list.h"
 
@@ -24,14 +22,14 @@ void convex_hull(DLElement **seq) {
     float p =
         (e1->y - e->y) * (e2->x - e1->x) - (e1->x - e->x) * (e2->y - e1->y);
     if (p > 0) {
-      if (((DLElement *)nextnext->next)->value.x == INFINITY) {
+      if (((DLElement *)nextnext->next)->next == NULL) {
         break;
       }
       *seq = next;
     } else {
       dllist_pop(next);
       DLElement *prev = (*seq)->prev;
-      if (prev->value.x != -INFINITY) {
+      if (prev->prev != NULL) {
         *seq = prev;
       } else {
         *seq = next;
@@ -48,7 +46,7 @@ void image_convex_hull(Polygon **polygon, ImgAlpha *alpha, uint8_t t) {
   size_t buf_size =
       2 * (alpha->width + alpha->height) + 1; // perimeter of the image
   DLElement *seq = dllist_alloc(buf_size);
-  DLElement *seq_first = seq->next;
+  DLElement *seq_start = seq;
 
   // a
   int64_t min = 0;
@@ -180,7 +178,8 @@ void image_convex_hull(Polygon **polygon, ImgAlpha *alpha, uint8_t t) {
     continue;
   }
 
-  dllist_push(seq, seq_first->value);
+  DLElement *first_element = seq_start->next;
+  dllist_push(seq, first_element->value);
   to_start(&seq);
 
   convex_hull(&seq);
