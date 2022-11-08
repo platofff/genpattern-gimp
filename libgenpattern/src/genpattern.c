@@ -1,6 +1,7 @@
 #include "genpattern.h"
 #include "basic_geometry.h"
 #include "convex_hull.h"
+#include "area.h"
 
 #include "test_image1._h"
 
@@ -10,7 +11,7 @@
 #include <unistd.h>
 
 
-#define WORK_SIZE 56
+#define WORK_SIZE 1
 
 void convex_polygon_thrd(void *_data) {
   CPThreadData *data = (CPThreadData *)(long)_data;
@@ -20,7 +21,7 @@ void convex_polygon_thrd(void *_data) {
     image_convex_hull(&params->polygon_ptrs[data->thread_id],
                       params->alpha_ptrs[data->thread_id],
                       params->t);
-
+    printf("%f\n", polygon_area(params->polygon_ptrs[data->thread_id]));
     mtx_lock(&params->next_work_mtx);
     if (*params->next_work != 0) {
       data->thread_id = *params->next_work;
@@ -107,6 +108,9 @@ int main() {
     }
   }
 
+  for (size_t i = 0; i < work.polygon_ptrs[0]->size; i++) {
+    printf("(%f, %f), ", work.polygon_ptrs[0]->x_ptr[i], work.polygon_ptrs[0]->y_ptr[i]);
+  }
 
   for (size_t i = 0; i < WORK_SIZE; i++) {
     polygon_free(work.polygon_ptrs[i]);

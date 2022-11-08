@@ -4,5 +4,6 @@ src = [
     pwd / 'basic_geometry.c',
     pwd / 'doubly_linked_list.c',
     pwd / 'convex_hull.c',
-    pwd / 'genpattern.c'
+    pwd / 'genpattern.c',
+    pwd / 'area.c'
 ]
