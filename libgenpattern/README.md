@@ -5,8 +5,8 @@
   - [x] AVX support
 - [ ] Polygon translation
   - [ ] AVX support
-- [ ] Shoelace formula
-  - [ ] AVX support
+- [x] Shoelace formula
+  - [x] AVX support
 - [ ] Polygon intersection 
   - [ ] Line segment intersection point
 - [ ] Polygon distance

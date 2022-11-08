@@ -54,7 +54,7 @@ void image_convex_hull(Polygon **polygon, ImgAlpha *alpha, uint8_t t) {
     int64_t j;
 #ifdef __AVX2__
     j = alpha->height - 32;
-    for (; j > min + 32; j -= 32) {
+    for (; j > min; j -= 32) {
       __m256i vec = _mm256_load_si256((const __m256i *)&alpha->data[i * alpha->width + j]);
       __m256i result = _mm256_cmpgt_epi8(vec, cmp_vec);
       int32_t cmp = _mm256_movemask_epi8(result);
@@ -65,7 +65,7 @@ void image_convex_hull(Polygon **polygon, ImgAlpha *alpha, uint8_t t) {
         goto continue_a;
       }
     }
-    j++;
+    j += 31;
 #else
     j = alpha->height - 1;
 #endif
@@ -86,7 +86,7 @@ void image_convex_hull(Polygon **polygon, ImgAlpha *alpha, uint8_t t) {
     int64_t i;
 #ifdef __AVX2__
     i = alpha->height - 33;
-    for (; i > min + 32; i -= 32) {
+    for (; i > min; i -= 32) {
       uint8_t *ptr = alpha->data + i * alpha->width + j;
       __m256i vec = LOAD_EPI8_COLUMN(ptr, alpha->width);
       __m256i result = _mm256_cmpgt_epi8(vec, cmp_vec);
@@ -98,7 +98,7 @@ void image_convex_hull(Polygon **polygon, ImgAlpha *alpha, uint8_t t) {
         goto continue_b;
       }
     }
-    i++;
+    i += 31;
 #else
     i = alpha->width - 1;
 #endif
@@ -130,7 +130,6 @@ void image_convex_hull(Polygon **polygon, ImgAlpha *alpha, uint8_t t) {
         goto continue_c;
       }
     }
-    j--;
 #endif
     for (; j < max; j++) {
       if (alpha->data[i * alpha->width + j] > t) {
@@ -160,7 +159,6 @@ void image_convex_hull(Polygon **polygon, ImgAlpha *alpha, uint8_t t) {
         goto continue_d;
       }
     }
-    i--;
 #endif
     for (; i < max; i++) {
       if (alpha->data[i * alpha->width + j] > t) {
