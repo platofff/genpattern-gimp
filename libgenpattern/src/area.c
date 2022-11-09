@@ -12,10 +12,14 @@ float polygon_area(Polygon *polygon) {
 #ifdef __AVX__
   __m256 sum8 = _mm256_set1_ps(0.0);
   for (i = 0; i < polygon->size - 8; i += 8) {
-    __m256 x = _mm256_loadu_ps(polygon->x_ptr + i);
+    __m256 x = _mm256_load_ps(polygon->x_ptr + i);
     __m256 y = _mm256_loadu_ps(polygon->y_ptr + i + 1);
+#ifdef __FMA__
+    sum8 = _mm256_fmadd_ps(x, y, sum8);
+#else
     __m256 xy = _mm256_mul_ps(x, y);
     sum8 = _mm256_add_ps(sum8, xy);
+#endif
   }
 
 #endif
@@ -29,9 +33,13 @@ float polygon_area(Polygon *polygon) {
 #ifdef __AVX__
   for (; i < polygon->size - 8; i += 8) {
     __m256 x = _mm256_loadu_ps(polygon->x_ptr + i + 1);
-    __m256 y = _mm256_loadu_ps(polygon->y_ptr + i);
+    __m256 y = _mm256_load_ps(polygon->y_ptr + i); // ???
+#ifdef __FMA__
+    sum8 = _mm256_fnmadd_ps(x, y, sum8);
+#else
     __m256 xy = _mm256_mul_ps(x, y);
     sum8 = _mm256_sub_ps(sum8, xy);
+#endif
   }
 
 #endif

@@ -2,6 +2,8 @@
 #include "basic_geometry.h"
 #include "convex_hull.h"
 #include "area.h"
+#include "misc.h"
+#include "translate.h"
 
 #include "test_image1._h"
 
@@ -21,6 +23,7 @@ void convex_polygon_thrd(void *_data) {
     image_convex_hull(&params->polygon_ptrs[data->thread_id],
                       params->alpha_ptrs[data->thread_id],
                       params->t);
+    polygon_translate(params->polygon_ptrs[data->thread_id], -56, 74);
     printf("%f\n", polygon_area(params->polygon_ptrs[data->thread_id]));
     mtx_lock(&params->next_work_mtx);
     if (*params->next_work != 0) {
@@ -102,7 +105,7 @@ int main() {
   }
 
   int r;
-  for (size_t i = 0; i < threads_size; i++) {
+  for (size_t i = 0; i < MIN(threads_size, WORK_SIZE); i++) {
     if (thrd_join(threads[i], &r) != thrd_success) {
       fprintf(stderr, "Failed to join thread %zu\n", i);
     }
@@ -111,6 +114,7 @@ int main() {
   for (size_t i = 0; i < work.polygon_ptrs[0]->size; i++) {
     printf("(%f, %f), ", work.polygon_ptrs[0]->x_ptr[i], work.polygon_ptrs[0]->y_ptr[i]);
   }
+  puts("");
 
   for (size_t i = 0; i < WORK_SIZE; i++) {
     polygon_free(work.polygon_ptrs[i]);

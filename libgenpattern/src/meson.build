@@ -5,5 +5,6 @@ src = [
     pwd / 'doubly_linked_list.c',
     pwd / 'convex_hull.c',
     pwd / 'genpattern.c',
-    pwd / 'area.c'
+    pwd / 'area.c',
+    pwd / 'translate.c'
 ]

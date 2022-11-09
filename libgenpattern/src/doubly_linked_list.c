@@ -47,8 +47,8 @@ Polygon *dllist_dump(DLElement *el) {
     el = (DLElement *)el->prev;
   }
 
-  res->x_ptr = malloc(sizeof(float) * res->size);
-  res->y_ptr = malloc(sizeof(float) * res->size);
+  res->x_ptr = aligned_alloc(32, sizeof(float) * res->size);
+  res->y_ptr = aligned_alloc(32, sizeof(float) * res->size);
   for (size_t i = 0; i < res->size; i++) {
     el = el->next;
     res->x_ptr[i] = el->value.x;

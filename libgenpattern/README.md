@@ -1,16 +1,19 @@
 ### libgenpattern [WIP]
 ##### Checklist
+- [x] Multithreading
 - [x] Convex hull extraction algorithm
-  - [x] Multithreading
   - [x] AVX support
-- [ ] Polygon translation
-  - [ ] AVX support
+- [x] Polygon translation
+  - [x] AVX support
 - [x] Shoelace formula
   - [x] AVX support
+- [ ] Polygon offsetting
+  - [ ] AVX support?
 - [ ] Polygon intersection 
   - [ ] Line segment intersection point
 - [ ] Polygon distance
   - [ ] Point distance
+  - [ ] AVX support?
 - [ ] Pattern search
 
 <i>to be continued...</i>
