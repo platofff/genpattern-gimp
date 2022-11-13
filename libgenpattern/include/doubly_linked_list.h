@@ -4,7 +4,7 @@
 /*
   Restrictions:
     dllist_push() after dllist_pop() is not always safe
-    "size" is maximal number of dllist_push() calls
+    "size" is the maximal number of dllist_push() calls
 */
 
 typedef struct {

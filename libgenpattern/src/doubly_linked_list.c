@@ -63,23 +63,3 @@ void to_start(DLElement **el) {
     *el = (*el)->prev;
   }
 }
-
-/*
-int main() {
-    DLElement *el = dllist_alloc(1024);
-    el = dllist_push(el, (Point){17.0, 56.0});
-    el = dllist_push(el, (Point){56.0, 43.0});
-    DLElement *p = el;
-    el = dllist_push(el, (Point){43.0, 74.0});
-    dllist_pop(p);
-
-    Polygon *dump = dllist_dump(el);
-    printf("size %zu\n", dump->size);
-    for (size_t i = 0; i < dump->size; i++) {
-        printf("el %zu = (%f, %f)\n", i, dump->x_ptr[i], dump->y_ptr[i]);
-    }
-
-    dllist_free(el);
-
-}
-*/
