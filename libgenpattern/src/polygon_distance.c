@@ -7,7 +7,6 @@
 
 static inline bool point_halfplane(const Point p1, const Point l1,
                                    const Point l2) {
-  //printf("(%f %f) - (%f %f). (%f, %f)\n", l1.x, l1.y, l2.x, l2.y, p1.x, p1.y);
   return ((p1.x - l1.x) * (l2.y - l1.y) - (p1.y - l1.y) * (l2.x - l1.x)) > 0;
 }
 
@@ -16,7 +15,6 @@ static inline void neightbours_halfplanes(Polygon *polygon, const Point p,
                                           bool *next_hp) {
   const size_t prev_idx = idx == 0 ? polygon->size - 1 : idx - 1;
   const size_t next_idx = idx == polygon->size - 1 ? 0 : idx + 1;
-  //printf("%zu %zu %zu\n", prev_idx, idx, next_idx);
   *prev_hp = point_halfplane(
       (Point){polygon->x_ptr[prev_idx], polygon->y_ptr[prev_idx]},
       (Point){polygon->x_ptr[idx], polygon->y_ptr[idx]}, p);
@@ -25,24 +23,24 @@ static inline void neightbours_halfplanes(Polygon *polygon, const Point p,
       (Point){polygon->x_ptr[idx], polygon->y_ptr[idx]}, p);
 }
 
-static inline void
-polygon_tangent_points(Polygon *polygon, const Point point, size_t *t1_idx,
-                       size_t *t2_idx) { // for clockwise polygon
-  size_t low = 0, high = polygon->size - 1, mid;
-  bool prev_hp, next_hp, target;
+static inline void binary_search_tangent(const Polygon *polygon,
+                                         const Point point, const bool target,
+                                         size_t *res) {
+  bool prev_hp, next_hp;
+  size_t mid, low = 0, high = polygon->size - 1;
 
   while (low <= high) {
     mid = low + (high - low) / 2;
     neightbours_halfplanes(polygon, point, mid, &prev_hp, &next_hp);
 
-    if (prev_hp == 1) {
+    if (prev_hp == target) {
       if (mid == 0) {
         high = polygon->size - 1;
         low = polygon->size - 1;
       } else {
         high = mid - 1;
       }
-    } else if (next_hp == 1) {
+    } else if (next_hp == target) {
       if (mid == polygon->size - 1) {
         low = 0;
         high = 0;
@@ -50,40 +48,19 @@ polygon_tangent_points(Polygon *polygon, const Point point, size_t *t1_idx,
         low = mid + 1;
       }
     } else {
-      *t1_idx = mid;
-      break;
-    }
-  }
-
-c:
-  low = 0;
-  high = polygon->size - 1;
-
-  while (low <= high) {
-    mid = low + (high - low) / 2;
-    neightbours_halfplanes(polygon, point, mid, &prev_hp, &next_hp);
-    if (prev_hp == 0) {
-      if (mid == 0) {
-        high = polygon->size - 1;
-        low = polygon->size - 1;
-      } else {
-        high = mid - 1;
-      }
-    } else if (next_hp == 0) {
-      if (mid == polygon->size - 1) {
-        low = 0;
-        high = 0;
-      } else {
-        low = mid + 1;
-      }
-    } else {
-      *t2_idx = mid;
+      *res = mid;
       break;
     }
   }
 }
 
-static inline void initial_phase(Polygon *polygon1, Polygon *polygon2,
+static inline void polygon_tangent_points(const Polygon *polygon, const Point point,
+                                          size_t *t1_idx, size_t *t2_idx) {
+  binary_search_tangent(polygon, point, 0, t1_idx);
+  binary_search_tangent(polygon, point, 1, t2_idx);
+}
+
+static inline void initial_phase(const Polygon *polygon1, const Polygon *polygon2,
                                  size_t *p1, size_t *p2, size_t *q1,
                                  size_t *q2) {
   polygon_tangent_points(
@@ -93,7 +70,6 @@ static inline void initial_phase(Polygon *polygon1, Polygon *polygon2,
 }
 
 int main() {
-
   float p1x[7] = {-4, -4.7, -2.6, 0, 1.95, 2.75, 0},
         p1y[7] = {-4, 0, 2.6, 3, 1.4, -1.8, -3.75};
   float p2x[7] = {16, 15.3, 17.4, 20, 21.95, 22.75, 20},
