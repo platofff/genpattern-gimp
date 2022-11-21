@@ -322,8 +322,8 @@ int main() {
         p1y[7] = {-3.75, -1.8, 1.4, 3, 2.6, 0, -4};
   float p2x[7] = {20, 22.75, 21.95, 20, 17.4, 15.3, 16},
         p2y[7] = {-3.75, -1.8, 1.4, 3, 2.6, 0, -4};
-  Polygon polygon1 = {&p1x[0], &p1y[0], 7};
-  Polygon polygon2 = {&p2x[0], &p2y[0], 7};
+  Polygon polygon2 = {&p1x[0], &p1y[0], 7};
+  Polygon polygon1 = {&p2x[0], &p2y[0], 7};
   int64_t p1, p2, q1, q2;
 
   initial_phase(&polygon1, &polygon2, &p1, &p2, &q1, &q2);
