@@ -205,7 +205,6 @@ static inline void binary_elimination_case3(int64_t *c1, int64_t *c2,
                                             int64_t *d2, int64_t md, float a_,
                                             float a__, float b_, float b__) {
   if (a_ > 0 && a__ > 0 && b_ > 0 && b__ > 0) { // Case 3.1
-    puts("3.1");
     if (a_ + b_ > M_PI) {                       // (1)
       if (a_ >= M_PI / 2) {
         *c1 = mc;
@@ -299,7 +298,7 @@ static inline void binary_elimination(const Polygon *polygon1,
       continue;
     }
     if (vc_q == 1) {
-      binary_elimination_case2(polygon2, polygon1, q1, q2, mq, p1, p2, mp,
+      binary_elimination_case2(polygon2, polygon1, q2, q1, mq, p1, p2, mp,
                                beta_, beta__, alpha_, alpha__);
       continue; 
     }
@@ -351,7 +350,7 @@ int main() {
 
   float p1x[7] = {0, 1, 1.95, 0, -2.6, -4.7, -4},
         p1y[7] = {-3.75, -2, 1.4, 3, 2.6, 0, -4};
-  float p2x[7] = {20, 22.75, 21.95, 20, 17.4, 15.3, 16},
+  float p2x[7] = {20, 22.75, 21.95, 20, 17.4, 16, 16},
         p2y[7] = {-3.75, -1.8, 1.4, 3, 2.6, 0, -4};
   Polygon polygon1 = {&p1x[0], &p1y[0], 7};
   Polygon polygon2 = {&p2x[0], &p2y[0], 7};
