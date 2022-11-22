@@ -3,8 +3,12 @@
 
 #include <math.h>
 #include <stdbool.h>
-
 #include <stdio.h>
+
+#ifdef __SSE__
+#include <stdalign.h>
+#include <xmmintrin.h>
+#endif
 
 #define POLYGON_POINT(polygon, idx)                                            \
   (Point) { polygon->x_ptr[idx], polygon->y_ptr[idx] }
@@ -17,8 +21,8 @@ static inline bool point_halfplane(const Point p1, const Point l1,
 }
 
 static inline void neighbors_halfplanes(const Polygon *polygon, const Point p,
-                                         const int64_t idx, bool *prev_hp,
-                                         bool *next_hp) {
+                                        const int64_t idx, bool *prev_hp,
+                                        bool *next_hp) {
   const int64_t prev_idx = PREV_IDX(polygon, idx);
   const int64_t next_idx = NEXT_IDX(polygon, idx);
   const Point cur_p = POLYGON_POINT(polygon, idx);
@@ -79,38 +83,56 @@ static inline float point_angle(const Point center, const Point p2,
   return atan2f(v1x * v2y - v1y * v2x, v1x * v2x + v1y * v2y);
 }
 
-// Computed from https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line
+static inline float point_to_line_segment_param(const Point l1, const Point l2,
+                                                const Point p, float *vals) {
+#ifdef __SSE__
+  __m128 v = _mm_setr_ps(p.x, p.y, l2.x, l2.y),
+         v2 = _mm_setr_ps(l1.x, l1.y, l1.x, l2.y);
+  v = _mm_sub_ps(v, v2);
+  v2 = _mm_shuffle_ps(v, v, _MM_SHUFFLE(3, 4, 3, 4)); // abcd -> cdcd
+  v = _mm_mul_ps(v, v2);
+  _mm_store_ps(&vals[0], v);
+  const float dot = vals[0] + vals[1];
+  const float len_sq = vals[2] + vals[3];
+#else
+  const float vals[0] = p.x - l1.x, vals[1] = p.y - l1.y, vals[2] = l2.x - l1.x,
+              vals[3] = l2.y - l1.y;
+  const float dot = vals[0] * vals[2] + vals[1] * vals[3];
+  const float len_sq = vals[2] * vals[2] + vals[3] * vals[3];
+#endif
+  return dot / len_sq;
+}
+
 static inline bool orthogonal_projection_exists(const Point l1, const Point l2,
                                                 const Point p) {
-  const float x1_x2 = l1.x - l2.x, y1_y2 = l1.y - l2.y, x1_x2_2 = x1_x2 * x1_x2;
-  const float xpos =
-      (p.x * x1_x2_2 + y1_y2 * (l1.x * (p.y - l2.y) + l2.x * (l1.y - p.y))) /
-      (x1_x2_2 + y1_y2 * y1_y2);
-  if (l1.x > l2.x) {
-    return l2.x <= xpos && l1.x >= xpos;
-  }
-  return l1.x <= xpos && l2.x >= xpos;
+  alignas(16) float vals[4];
+  const float param = point_to_line_segment_param(l1, l2, p, &vals[0]);
+  return 0 <= param && param <= 1;
 }
 
-static inline bool orthogonal_projection(const Point l1, const Point l2, const Point p, Point *res) {
-  const float x1_x2 = l1.x - l2.x, y1_y2 = l1.y - l2.y, x1_x2_2 = x1_x2 * x1_x2;
-  res->x =
-      (p.x * x1_x2_2 + y1_y2 * (l1.x * (p.y - l2.y) + l2.x * (l1.y - p.y))) /
-      (x1_x2_2 + y1_y2 * y1_y2);
-  if (l1.x > l2.x) {
-     if (l2.x > res->x || l1.x < res->x) {
-      return 1;
-     }
-  } else if (l1.x > res->x || l2.x < res->x) {
-    return 1;
+static inline float
+point_to_line_segment_distance(const Point l1, const Point l2, const Point p) {
+  alignas(16) float vals[4];
+  const float param = point_to_line_segment_param(l1, l2, p, &vals[0]);
+
+  float dx, dy;
+
+  if (param < 0) {
+    dx = p.x - l1.x;
+    dy = p.y - l1.y;
+  } else if (param > 1) {
+    dx = p.x - l2.x;
+    dy = p.y - l2.y;
+  } else {
+    dx = p.x - l1.x - param * vals[2];
+    dy = p.y - l1.y - param * vals[3];
   }
 
-  // TODO
-
-  return 0;
+  return sqrtf(dx * dx + dy * dy);
 }
 
-static inline int64_t median_idx(const int64_t size, const int64_t *i1, const int64_t *i2) {
+static inline int64_t median_idx(const int64_t size, const int64_t *i1,
+                                 const int64_t *i2) {
   if (*i1 > *i2) {
     const int64_t in1 = *i1 - size;
     const int64_t resn = (*i2 + in1) / 2;
@@ -122,15 +144,16 @@ static inline int64_t median_idx(const int64_t size, const int64_t *i1, const in
   return (*i1 + *i2) / 2;
 }
 
-static inline int64_t vertex_count(const int64_t size, const int64_t *i1, const int64_t *i2) {
+static inline int64_t vertex_count(const int64_t size, const int64_t *i1,
+                                   const int64_t *i2) {
   if (*i1 > *i2) {
     return size - *i1 + *i2;
   }
   return *i2 - *i1;
 }
 
-static inline void binary_elimination_case1(int64_t *c1, int64_t *c2, int64_t mc,
-                                            float a_, float a__) {
+static inline void binary_elimination_case1(int64_t *c1, int64_t *c2,
+                                            int64_t mc, float a_, float a__) {
   if (a_ >= M_PI / 2) {
     *c1 = mc;
   }
@@ -140,11 +163,12 @@ static inline void binary_elimination_case1(int64_t *c1, int64_t *c2, int64_t mc
 }
 
 static inline void binary_elimination_case2(const Polygon *polygon1,
-                                            const Polygon *polygon2, int64_t *c1,
-                                            int64_t *c2, int64_t mc, int64_t *d1,
+                                            const Polygon *polygon2,
+                                            int64_t *c1, int64_t *c2,
+                                            int64_t mc, int64_t *d1,
                                             int64_t *d2, int64_t md, float a_,
                                             float a__, float b_, float b__) {
-  if (a_ > 0) { // Case 2.1
+  if (a_ > 0) {           // Case 2.1
     if (a_ + b_ > M_PI) { // (1)
       if (a_ >= M_PI / 2) {
         *c1 = *c2;
@@ -176,11 +200,12 @@ static inline void binary_elimination_case2(const Polygon *polygon1,
   }
 }
 
-static inline void binary_elimination_case3(int64_t *c1, int64_t *c2, int64_t mc,
-                                            int64_t *d1, int64_t *d2, int64_t md,
-                                            float a_, float a__, float b_,
-                                            float b__) {
+static inline void binary_elimination_case3(int64_t *c1, int64_t *c2,
+                                            int64_t mc, int64_t *d1,
+                                            int64_t *d2, int64_t md, float a_,
+                                            float a__, float b_, float b__) {
   if (a_ > 0 && a__ > 0 && b_ > 0 && b__ > 0) { // Case 3.1
+    puts("3.1");
     if (a_ + b_ > M_PI) {                       // (1)
       if (a_ >= M_PI / 2) {
         *c1 = mc;
@@ -212,17 +237,17 @@ static inline void binary_elimination(const Polygon *polygon1,
                                       const Polygon *polygon2, int64_t *p1,
                                       int64_t *p2, int64_t *q1, int64_t *q2) {
 
-  int64_t vc_p = vertex_count(polygon1->size, p1, p2);
-  int64_t vc_q = vertex_count(polygon2->size, q1, q2);
-  while (vc_p > 1 || vc_q > 1) {
+  int64_t vc_p, vc_q;
+  do {
     vc_p = vertex_count(polygon1->size, p1, p2);
     vc_q = vertex_count(polygon2->size, q1, q2);
-    printf("p1=%zu p2=%zu q1=%zu q2=%zu vc_p=%u\n", *p1, *p2, *q1, *q2, vc_p);
+    printf("p1=%zu p2=%zu q1=%zu q2=%zu vc_p=%ld vc_q=%ld\n", *p1, *p2, *q1, *q2, vc_p, vc_q);
+    //if (*p1==1 && *p2==3 && *q1==5 && *q2==5) break;
 
-    int64_t mp = median_idx(polygon1->size, p1, p2), mq = median_idx(polygon2->size, q1, q2);
+    int64_t mp = median_idx(polygon1->size, p1, p2),
+            mq = median_idx(polygon2->size, q1, q2);
     float alpha_ = 0, alpha__ = 0, beta_ = 0, beta__ = 0;
     if (vc_p == 1) {
-      // printf("(%f %f)\n", polygon1->x_ptr[p2], polygon1->y_ptr[p2]);
       int64_t pn;
       pn = *p1;
       mp = *p2;
@@ -233,10 +258,9 @@ static inline void binary_elimination(const Polygon *polygon1,
       alpha_ = point_angle(POLYGON_POINT(polygon1, mp),
                            POLYGON_POINT(polygon1, PREV_IDX(polygon1, mp)),
                            POLYGON_POINT(polygon2, mq));
-      printf("%d %d %d\n", mp, mq, NEXT_IDX(polygon1, mp));
-      alpha__ = point_angle(POLYGON_POINT(polygon1, mp),
-                            POLYGON_POINT(polygon2, mq),
-                            POLYGON_POINT(polygon1, NEXT_IDX(polygon1, mp)));
+      alpha__ =
+          point_angle(POLYGON_POINT(polygon1, mp), POLYGON_POINT(polygon2, mq),
+                      POLYGON_POINT(polygon1, NEXT_IDX(polygon1, mp)));
     }
 
     if (vc_q == 1) {
@@ -244,12 +268,12 @@ static inline void binary_elimination(const Polygon *polygon1,
       qn = *q1;
       mq = *q2;
       beta__ =
-          point_angle(POLYGON_POINT(polygon2, mq),
-                      POLYGON_POINT(polygon1, mp), POLYGON_POINT(polygon2, qn));
+          point_angle(POLYGON_POINT(polygon2, mq), POLYGON_POINT(polygon1, mp),
+                      POLYGON_POINT(polygon2, qn));
     } else if (vc_q > 1) {
-      beta_ = point_angle(POLYGON_POINT(polygon2, mq),
-                          POLYGON_POINT(polygon1, mp),
-                          POLYGON_POINT(polygon2, NEXT_IDX(polygon2, mq)));
+      beta_ =
+          point_angle(POLYGON_POINT(polygon2, mq), POLYGON_POINT(polygon1, mp),
+                      POLYGON_POINT(polygon2, NEXT_IDX(polygon2, mq)));
       beta__ = point_angle(POLYGON_POINT(polygon2, mq),
                            POLYGON_POINT(polygon2, PREV_IDX(polygon2, mq)),
                            POLYGON_POINT(polygon1, mp));
@@ -259,58 +283,65 @@ static inline void binary_elimination(const Polygon *polygon1,
            beta__, mp, mq);
 
     // Case 1
-    if (vc_p == 0 || vc_q == 0) {
+    if (vc_p == 0) {
       binary_elimination_case1(q1, q2, mq, beta_, beta__);
       continue;
     }
-    /*
-    if (*q1 == *q2) {
+    if (vc_q == 0) {
       binary_elimination_case1(p1, p2, mp, alpha_, alpha__);
       continue;
-    }*/
+    }
 
     // Case 2
-    if (labs(*p2 - *p1) == 1 || labs(*q2 - *q1) == 1) {
-      // puts("case 2");
+    if (vc_p == 1) {
       binary_elimination_case2(polygon1, polygon2, p1, p2, mp, q1, q2, mq,
                                alpha_, alpha__, beta_, beta__);
       continue;
     }
-    /*
-    if (labs(*q2 - *q1) == 1) {
+    if (vc_q == 1) {
       binary_elimination_case2(polygon2, polygon1, q1, q2, mq, p1, p2, mp,
                                beta_, beta__, alpha_, alpha__);
-      continue;
-    }*/
+      continue; 
+    }
 
     // Case 3
-    // puts("case 3");
     binary_elimination_case3(p1, p2, mp, q1, q2, mq, alpha_, alpha__, beta_,
                              beta__);
-    if (*p1 == 6 && *p2 == 0 && *q1 == 4 && *q2 == 6) break;
-  }
+  } while (vc_p > 1 || vc_q > 1);
 }
 
 static inline float final_phase(Point p1, Point p2, Point q1, Point q2) {
   if (p1.x == p2.x && p1.y == p2.y && q1.x == q2.x && q1.y == q2.y) { // Case 1
-    return sqrtf((p1.x - q1.x) * (p1.x - q1.x) + (p1.y - q1.y) * (p1.y - q1.y));
+    const float dx = p1.x - q1.x;
+    const float dy = p1.y - q1.y;
+    return sqrtf(dx * dx + dy * dy);
   }
   if (p1.x == p2.x && p1.y == p2.y) { // Case 2
-
+    return point_to_line_segment_distance(q1, q2, p1);
   }
   if (q1.x == q2.x && q1.y == q2.y) { // Case 2
-
+    return point_to_line_segment_distance(p1, p2, q1);
   }
+  // Case 3
+  float f[4];
+  f[0] = point_to_line_segment_distance(q1, q2, p1);
+  f[1] = point_to_line_segment_distance(q1, q2, p2);
+  f[2] = point_to_line_segment_distance(p1, p2, q1);
+  f[3] = point_to_line_segment_distance(p1, p2, q2);
+  if (f[1] < f[0]) f[0] = f[1];
+  if (f[2] < f[0]) f[0] = f[2];
+  if (f[3] < f[0]) f[0] = f[3];
+  return f[0];
 }
 
 int main() {
 
-/*
-  float p1x[7] = {-4, -4.7, -2.6, 0, 1.95, 2.75, 0},
-        p1y[7] = {-4, 0, 2.6, 3, 1.4, -1.8, -3.75};
-  float p2x[7] = {16, 15.3, 17.4, 20, 21.95, 22.75, 20},
-        p2y[7] = {-4, 0, 2.6, 3, 1.4, -1.8, -3.75};
-*/
+  /*
+    float p1x[7] = {-4, -4.7, -2.6, 0, 1.95, 2.75, 0},
+          p1y[7] = {-4, 0, 2.6, 3, 1.4, -1.8, -3.75};
+    float p2x[7] = {16, 15.3, 17.4, 20, 21.95, 22.75, 20},
+          p2y[7] = {-4, 0, 2.6, 3, 1.4, -1.8, -3.75};
+  */
 
   /*
   float p1x[5] = {-3, -5, -3, -2, -3},
@@ -318,12 +349,12 @@ int main() {
   float p2x[5] = {3,  1, 3, 5, 3},
         p2y[5] = {-2, 1, 2, 1, -2};*/
 
-  float p1x[7] = {0, 2.75, 1.95, 0, -2.6, -4.7, -4},
-        p1y[7] = {-3.75, -1.8, 1.4, 3, 2.6, 0, -4};
+  float p1x[7] = {0, 1, 1.95, 0, -2.6, -4.7, -4},
+        p1y[7] = {-3.75, -2, 1.4, 3, 2.6, 0, -4};
   float p2x[7] = {20, 22.75, 21.95, 20, 17.4, 15.3, 16},
         p2y[7] = {-3.75, -1.8, 1.4, 3, 2.6, 0, -4};
-  Polygon polygon2 = {&p1x[0], &p1y[0], 7};
-  Polygon polygon1 = {&p2x[0], &p2y[0], 7};
+  Polygon polygon1 = {&p1x[0], &p1y[0], 7};
+  Polygon polygon2 = {&p2x[0], &p2y[0], 7};
   int64_t p1, p2, q1, q2;
 
   initial_phase(&polygon1, &polygon2, &p1, &p2, &q1, &q2);
