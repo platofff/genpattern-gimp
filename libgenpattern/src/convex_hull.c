@@ -40,10 +40,9 @@ void convex_hull(DLElement **seq) {
 
 void image_convex_hull(Polygon **polygon, ImgAlpha *alpha, uint8_t _t) {
   _t--;
+#ifdef __AVX2__
   int8_t t = *(int8_t*)(&_t);
   t ^= 0b10000000;
-  printf("%d\n", t);
-#ifdef __AVX2__
   __m256i cmp_vec = _mm256_set1_epi8(t);
   __m256i signed_convert_mask = _mm256_set1_epi8(0b10000000);
 #endif
