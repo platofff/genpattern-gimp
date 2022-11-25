@@ -278,7 +278,7 @@ static inline void binary_elimination(const Polygon *polygon1,
                            POLYGON_POINT(polygon1, mp));
     }
 
-    printf("a'=%f a''=%f b'=%f b''=%f mp=%zu mq=%zu\n", alpha_, alpha__, beta_,
+    printf("a'=%f a''=%f b'=%f b''=%f mp=%zu mq=%zu\n\n", alpha_, alpha__, beta_,
            beta__, mp, mq);
 
     // Case 1
@@ -298,7 +298,7 @@ static inline void binary_elimination(const Polygon *polygon1,
       continue;
     }
     if (vc_q == 1) {
-      binary_elimination_case2(polygon2, polygon1, q2, q1, mq, p1, p2, mp,
+      binary_elimination_case2(polygon2, polygon1, q2, q1, mq, p2, p1, mp,
                                beta_, beta__, alpha_, alpha__);
       continue; 
     }

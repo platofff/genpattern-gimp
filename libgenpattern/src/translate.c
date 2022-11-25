@@ -5,7 +5,7 @@
 #endif
 
 void polygon_translate(Polygon *polygon, float x_off_val, float y_off_val) {
-  size_t i = 0;
+  int64_t i = 0;
 #ifdef __AVX__
   __m256 x_off = _mm256_set1_ps(x_off_val), y_off = _mm256_set1_ps(y_off_val);
   for (; i < polygon->size - 8; i += 8) {

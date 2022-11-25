@@ -9,7 +9,7 @@
 
 float polygon_area(Polygon *polygon) {
   float p = 0.0;
-  size_t i = 0;
+  int64_t i = 0;
 #ifdef __AVX__
   __m256 sum8 = _mm256_set1_ps(0.0);
   for (; i < polygon->size - 9; i += 8) {

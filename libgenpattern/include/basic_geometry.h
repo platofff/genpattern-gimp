@@ -1,5 +1,5 @@
 #pragma once
-#include <stdlib.h>
+#include <stdint.h>
 
 typedef struct {
     float x;
@@ -9,7 +9,7 @@ typedef struct {
 typedef struct {
     float *x_ptr;
     float *y_ptr;
-    size_t size;
+    int64_t size;
 } Polygon;
 
 void polygon_free(Polygon *p);

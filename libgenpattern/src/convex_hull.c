@@ -38,10 +38,14 @@ void convex_hull(DLElement **seq) {
   }
 }
 
-void image_convex_hull(Polygon **polygon, ImgAlpha *alpha, uint8_t t) {
-  t--;
+void image_convex_hull(Polygon **polygon, ImgAlpha *alpha, uint8_t _t) {
+  _t--;
+  int8_t t = *(int8_t*)(&_t);
+  t ^= 0b10000000;
+  printf("%d\n", t);
 #ifdef __AVX2__
   __m256i cmp_vec = _mm256_set1_epi8(t);
+  __m256i signed_convert_mask = _mm256_set1_epi8(0b10000000);
 #endif
   size_t buf_size =
       2 * (alpha->width + alpha->height) + 1; // perimeter of the image
@@ -56,6 +60,7 @@ void image_convex_hull(Polygon **polygon, ImgAlpha *alpha, uint8_t t) {
     j = alpha->height - 32;
     for (; j > min; j -= 32) {
       __m256i vec = _mm256_load_si256((const __m256i *)&alpha->data[i * alpha->width + j]);
+      vec = _mm256_xor_si256(vec, signed_convert_mask);
       __m256i result = _mm256_cmpgt_epi8(vec, cmp_vec);
       int32_t cmp = _mm256_movemask_epi8(result);
       if (cmp != 0) {
@@ -70,7 +75,7 @@ void image_convex_hull(Polygon **polygon, ImgAlpha *alpha, uint8_t t) {
     j = alpha->height - 1;
 #endif
     for (; j > min; j--) {
-      if (alpha->data[i * alpha->width + j] > t) {
+      if (alpha->data[i * alpha->width + j] > _t) {
         seq = dllist_push(seq, (Point){i, j});
         min = j;
         break;
@@ -89,6 +94,7 @@ void image_convex_hull(Polygon **polygon, ImgAlpha *alpha, uint8_t t) {
     for (; i > min; i -= 32) {
       uint8_t *ptr = alpha->data + i * alpha->width + j;
       __m256i vec = LOAD_EPI8_COLUMN(ptr, alpha->width);
+      vec = _mm256_xor_si256(vec, signed_convert_mask);
       __m256i result = _mm256_cmpgt_epi8(vec, cmp_vec);
       int32_t cmp = _mm256_movemask_epi8(result);
       if (cmp != 0) {
@@ -103,7 +109,7 @@ void image_convex_hull(Polygon **polygon, ImgAlpha *alpha, uint8_t t) {
     i = alpha->width - 1;
 #endif
     for (; i > min; i--) {
-      if (alpha->data[i * alpha->width + j] > t) {
+      if (alpha->data[i * alpha->width + j] > _t) {
         seq = dllist_push(seq, (Point){i, j});
         min = i;
         break;
@@ -121,6 +127,7 @@ void image_convex_hull(Polygon **polygon, ImgAlpha *alpha, uint8_t t) {
     for (; j < max - 32; j += 32) {
       __m256i vec = _mm256_load_si256(
           (const __m256i *)&alpha->data[i * alpha->width + j]);
+      vec = _mm256_xor_si256(vec, signed_convert_mask);
       __m256i result = _mm256_cmpgt_epi8(vec, cmp_vec);
       int32_t cmp = _mm256_movemask_epi8(result);
       if (cmp != 0) {
@@ -132,7 +139,7 @@ void image_convex_hull(Polygon **polygon, ImgAlpha *alpha, uint8_t t) {
     }
 #endif
     for (; j < max; j++) {
-      if (alpha->data[i * alpha->width + j] > t) {
+      if (alpha->data[i * alpha->width + j] > _t) {
         seq = dllist_push(seq, (Point){i, j});
         max = j;
         break;
@@ -150,6 +157,7 @@ void image_convex_hull(Polygon **polygon, ImgAlpha *alpha, uint8_t t) {
     for (; i < max - 32; i += 32) {
       uint8_t *ptr = alpha->data + i * alpha->width + j;
       __m256i vec = LOAD_EPI8_COLUMN(ptr, alpha->width);
+      vec = _mm256_xor_si256(vec, signed_convert_mask);
       __m256i result = _mm256_cmpgt_epi8(vec, cmp_vec);
       int32_t cmp = _mm256_movemask_epi8(result);
       if (cmp != 0) {
@@ -161,7 +169,7 @@ void image_convex_hull(Polygon **polygon, ImgAlpha *alpha, uint8_t t) {
     }
 #endif
     for (; i < max; i++) {
-      if (alpha->data[i * alpha->width + j] > t) {
+      if (alpha->data[i * alpha->width + j] > _t) {
         seq = dllist_push(seq, (Point){i, j});
         max = i;
         break;

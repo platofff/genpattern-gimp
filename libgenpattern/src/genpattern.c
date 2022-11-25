@@ -23,6 +23,7 @@ void convex_polygon_thrd(void *_data) {
     image_convex_hull(&params->polygon_ptrs[data->thread_id],
                       params->alpha_ptrs[data->thread_id],
                       params->t);
+    printf("%ld\n", params->polygon_ptrs[data->thread_id]->size);
     polygon_translate(params->polygon_ptrs[data->thread_id], -56, 74);
     printf("%f\n", polygon_area(params->polygon_ptrs[data->thread_id]));
     mtx_lock(&params->next_work_mtx);
