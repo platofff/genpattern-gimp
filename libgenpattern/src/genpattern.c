@@ -118,7 +118,7 @@ int main() {
   }
   puts("");
   */
-  polygon_translate(work.polygon_ptrs[1], -560, 2000);
+  polygon_translate(work.polygon_ptrs[0], -5600, 2000);
   work.polygon_ptrs[0]->size--; // remove last point
   work.polygon_ptrs[1]->size--;
   printf("%f\n", polygon_distance(work.polygon_ptrs[0], work.polygon_ptrs[1]));

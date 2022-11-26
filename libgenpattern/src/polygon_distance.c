@@ -10,12 +10,12 @@ Algorithm:
   https://doi.org/10.1016/0196-6774(85)90039-2.
   (https://www.sciencedirect.com/science/article/pii/0196677485900392)
 
-Implementation by Arkadii Chekha, 2022 
+Implementation by Arkadii Chekha, 2022
 */
 
 #include "polygon_distance.h"
 #include "misc.h"
-#include "translate.h"
+// #include "translate.h"
 
 #include <math.h>
 #include <stdbool.h>
@@ -54,7 +54,7 @@ static inline void binary_search_tangent(const Polygon *polygon,
 
   while (low <= high) {
     mid = low + (high - low) / 2;
-    //printf("low %ld, high %ld, mid %ld\n", low, high, mid);
+    // printf("low %ld, high %ld, mid %ld\n", low, high, mid);
     neighbors_halfplanes(polygon, point, mid, &prev_hp, &next_hp);
 
     if (prev_hp == target) {
@@ -185,7 +185,7 @@ static inline void binary_elimination_case2(const Polygon *polygon1,
                                             int64_t mc, int64_t *d1,
                                             int64_t *d2, int64_t md, float a_,
                                             float a__, float b_, float b__) {
-  if (a_ > 0) {           // Case 2.1
+  if (a_ > 0) { // Case 2.1
     //puts("case 2.1");
     if (a_ + b_ > M_PI) { // (1)
       //puts("case 2.1.1");
@@ -204,9 +204,9 @@ static inline void binary_elimination_case2(const Polygon *polygon1,
                                        POLYGON_POINT(polygon1, *c2),
                                        POLYGON_POINT(polygon2, md))) {
         *d2 = md;
+      } else {
+        *c2 = *c1;
       }
-    } else {
-      *c2 = *c1;
     }
   } else { // Case 2.2
     *c2 = *c1;
@@ -228,17 +228,14 @@ static inline void binary_elimination_case3(int64_t *c1, int64_t *c2,
       //puts("case 3.1.1");
       if (a_ >= M_PI / 2) {
         *c1 = mc;
-      }
-      else if (b_ >= M_PI / 2) {
+      } else if (b_ >= M_PI / 2) {
         *d1 = md;
       }
-    }
-    else if (a__ + b__ > M_PI) { // (2)
+    } else if (a__ + b__ > M_PI) { // (2)
       //puts("case 3.1.2");
       if (a__ >= M_PI / 2) {
         *c2 = mc;
-      }
-      else if (b__ >= M_PI / 2) {
+      } else if (b__ >= M_PI / 2) {
         *d2 = md;
       }
     }
@@ -246,8 +243,7 @@ static inline void binary_elimination_case3(int64_t *c1, int64_t *c2,
     *c2 = mc;
     if (b_ >= M_PI) {
       *d1 = md;
-    }
-    else if (b__ >= M_PI) {
+    } else if (b__ >= M_PI) {
       *d2 = md;
     }
   }
@@ -301,8 +297,6 @@ static inline void binary_elimination(const Polygon *polygon1,
 
     //printf("a'=%f a''=%f b'=%f b''=%f mp=%zu mq=%zu\n\n", alpha_, alpha__,
     //       beta_, beta__, mp, mq);
-
-    if (*p1==36 && *p2==36 && *q1==21 && *q2==23) break;
 
     // Case 1
     if (vc_p == 0) {
@@ -386,11 +380,11 @@ float polygon_distance(Polygon *polygon1, Polygon *polygon2) {
   int64_t p1, p2, q1, q2;
 
   initial_phase(polygon1, polygon2, &p1, &p2, &q1, &q2);
-  //printf("p1=%ld p2=%ld q1=%ld q2=%ld\n", p1, p2, q1, q2);
+  // printf("p1=%ld p2=%ld q1=%ld q2=%ld\n", p1, p2, q1, q2);
 
   binary_elimination(polygon1, polygon2, &p1, &p2, &q1, &q2);
 
-  //printf("p1=%ld p2=%ld q1=%ld q2=%ld\n", p1, p2, q1, q2);
+  // printf("p1=%ld p2=%ld q1=%ld q2=%ld\n", p1, p2, q1, q2);
   return final_phase(POLYGON_POINT(polygon1, p1), POLYGON_POINT(polygon1, p2),
                      POLYGON_POINT(polygon2, q1), POLYGON_POINT(polygon2, q1));
 }
