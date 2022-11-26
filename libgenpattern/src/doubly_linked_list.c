@@ -39,18 +39,26 @@ DLElement *dllist_pop(DLElement *el) {
 Polygon *dllist_dump(DLElement *el) {
   Polygon *res = malloc(sizeof(Polygon));
   res->size = 0;
+  /*
   while (el->next != NULL) {
     el = (DLElement *)el->next;
   }
   while (el->prev != NULL) {
     res->size++;
     el = (DLElement *)el->prev;
+  }*/
+  while (el->prev != NULL) {
+    el = (DLElement *)el->prev;
+  }
+  while (el->next != NULL) {
+    res->size++;
+    el = (DLElement *)el->next;
   }
 
   res->x_ptr = aligned_alloc(32, sizeof(float) * res->size);
   res->y_ptr = aligned_alloc(32, sizeof(float) * res->size);
   for (size_t i = 0; i < res->size; i++) {
-    el = el->next;
+    el = el->prev;
     res->x_ptr[i] = el->value.x;
     res->y_ptr[i] = el->value.y;
   }

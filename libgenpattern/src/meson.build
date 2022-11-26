@@ -6,5 +6,6 @@ src = [
     pwd / 'convex_hull.c',
     pwd / 'genpattern.c',
     pwd / 'area.c',
-    pwd / 'translate.c'
+    pwd / 'translate.c',
+    pwd / 'polygon_distance.c'
 ]

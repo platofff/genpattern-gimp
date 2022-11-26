@@ -1,5 +1,21 @@
+/*
+Algorithm:
+  H Edelsbrunner,
+  Computing the extreme distances between two convex polygons,
+  Journal of Algorithms,
+  Volume 6, Issue 2,
+  1985,
+  Pages 213-224,
+  ISSN 0196-6774,
+  https://doi.org/10.1016/0196-6774(85)90039-2.
+  (https://www.sciencedirect.com/science/article/pii/0196677485900392)
+
+Implementation by Arkadii Chekha, 2022 
+*/
+
 #include "polygon_distance.h"
 #include "misc.h"
+#include "translate.h"
 
 #include <math.h>
 #include <stdbool.h>
@@ -38,6 +54,7 @@ static inline void binary_search_tangent(const Polygon *polygon,
 
   while (low <= high) {
     mid = low + (high - low) / 2;
+    //printf("low %ld, high %ld, mid %ld\n", low, high, mid);
     neighbors_halfplanes(polygon, point, mid, &prev_hp, &next_hp);
 
     if (prev_hp == target) {
@@ -169,25 +186,27 @@ static inline void binary_elimination_case2(const Polygon *polygon1,
                                             int64_t *d2, int64_t md, float a_,
                                             float a__, float b_, float b__) {
   if (a_ > 0) {           // Case 2.1
+    //puts("case 2.1");
     if (a_ + b_ > M_PI) { // (1)
+      //puts("case 2.1.1");
       if (a_ >= M_PI / 2) {
         *c1 = *c2;
       }
       if (b_ >= M_PI / 2) {
         *d1 = md;
       }
-    }
-    if (b__ >= M_PI / 2) { // (2)
+    } else if (b__ >= M_PI / 2) { // (2)
+      //puts("case 2.1.2");
       *d2 = md;
-    }
-    if (a_ < b__ && b__ < M_PI / 2) { // (3)
+    } else if (a_ < b__ && b__ < M_PI / 2) { // (3)
+      //puts("case 2.1.3");
       if (orthogonal_projection_exists(POLYGON_POINT(polygon1, *c1),
                                        POLYGON_POINT(polygon1, *c2),
                                        POLYGON_POINT(polygon2, md))) {
         *d2 = md;
-      } else {
-        *c2 = *c1;
       }
+    } else {
+      *c2 = *c1;
     }
   } else { // Case 2.2
     *c2 = *c1;
@@ -206,18 +225,20 @@ static inline void binary_elimination_case3(int64_t *c1, int64_t *c2,
                                             float a__, float b_, float b__) {
   if (a_ > 0 && a__ > 0 && b_ > 0 && b__ > 0) { // Case 3.1
     if (a_ + b_ > M_PI) {                       // (1)
+      //puts("case 3.1.1");
       if (a_ >= M_PI / 2) {
         *c1 = mc;
       }
-      if (b_ >= M_PI / 2) {
+      else if (b_ >= M_PI / 2) {
         *d1 = md;
       }
     }
-    if (a__ + b__ > M_PI) { // (2)
+    else if (a__ + b__ > M_PI) { // (2)
+      //puts("case 3.1.2");
       if (a__ >= M_PI / 2) {
         *c2 = mc;
       }
-      if (b__ >= M_PI / 2) {
+      else if (b__ >= M_PI / 2) {
         *d2 = md;
       }
     }
@@ -226,7 +247,7 @@ static inline void binary_elimination_case3(int64_t *c1, int64_t *c2,
     if (b_ >= M_PI) {
       *d1 = md;
     }
-    if (b__ >= M_PI) {
+    else if (b__ >= M_PI) {
       *d2 = md;
     }
   }
@@ -240,8 +261,8 @@ static inline void binary_elimination(const Polygon *polygon1,
   do {
     vc_p = vertex_count(polygon1->size, p1, p2);
     vc_q = vertex_count(polygon2->size, q1, q2);
-    printf("p1=%zu p2=%zu q1=%zu q2=%zu vc_p=%ld vc_q=%ld\n", *p1, *p2, *q1, *q2, vc_p, vc_q);
-    //if (*p1==1 && *p2==3 && *q1==5 && *q2==5) break;
+    //printf("p1=%ld p2=%ld q1=%ld q2=%ld vc_p=%ld vc_q=%ld\n", *p1, *p2, *q1,
+    //       *q2, vc_p, vc_q);
 
     int64_t mp = median_idx(polygon1->size, p1, p2),
             mq = median_idx(polygon2->size, q1, q2);
@@ -278,12 +299,14 @@ static inline void binary_elimination(const Polygon *polygon1,
                            POLYGON_POINT(polygon1, mp));
     }
 
-    printf("a'=%f a''=%f b'=%f b''=%f mp=%zu mq=%zu\n\n", alpha_, alpha__, beta_,
-           beta__, mp, mq);
+    //printf("a'=%f a''=%f b'=%f b''=%f mp=%zu mq=%zu\n\n", alpha_, alpha__,
+    //       beta_, beta__, mp, mq);
+
+    if (*p1==36 && *p2==36 && *q1==21 && *q2==23) break;
 
     // Case 1
     if (vc_p == 0) {
-      binary_elimination_case1(q1, q2, mq, beta_, beta__);
+      binary_elimination_case1(q2, q1, mq, beta_, beta__);
       continue;
     }
     if (vc_q == 0) {
@@ -293,19 +316,20 @@ static inline void binary_elimination(const Polygon *polygon1,
 
     // Case 2
     if (vc_p == 1) {
-      binary_elimination_case2(polygon1, polygon2, p1, p2, mp, q1, q2, mq,
+      binary_elimination_case2(polygon1, polygon2, p1, p2, mp, q2, q1, mq,
                                alpha_, alpha__, beta_, beta__);
       continue;
     }
     if (vc_q == 1) {
-      binary_elimination_case2(polygon2, polygon1, q2, q1, mq, p2, p1, mp,
+      binary_elimination_case2(polygon2, polygon1, q2, q1, mq, p1, p2, mp,
                                beta_, beta__, alpha_, alpha__);
-      continue; 
+      continue;
     }
 
     // Case 3
-    binary_elimination_case3(p1, p2, mp, q1, q2, mq, alpha_, alpha__, beta_,
+    binary_elimination_case3(p1, p2, mp, q2, q1, mq, alpha_, alpha__, beta_,
                              beta__);
+
   } while (vc_p > 1 || vc_q > 1);
 }
 
@@ -327,13 +351,16 @@ static inline float final_phase(Point p1, Point p2, Point q1, Point q2) {
   f[1] = point_to_line_segment_distance(q1, q2, p2);
   f[2] = point_to_line_segment_distance(p1, p2, q1);
   f[3] = point_to_line_segment_distance(p1, p2, q2);
-  if (f[1] < f[0]) f[0] = f[1];
-  if (f[2] < f[0]) f[0] = f[2];
-  if (f[3] < f[0]) f[0] = f[3];
+  if (f[1] < f[0])
+    f[0] = f[1];
+  if (f[2] < f[0])
+    f[0] = f[2];
+  if (f[3] < f[0])
+    f[0] = f[3];
   return f[0];
 }
 
-int main() {
+float polygon_distance(Polygon *polygon1, Polygon *polygon2) {
 
   /*
     float p1x[7] = {-4, -4.7, -2.6, 0, 1.95, 2.75, 0},
@@ -347,22 +374,23 @@ int main() {
         p1y[5] = {0,   2,  4,  2, 0};
   float p2x[5] = {3,  1, 3, 5, 3},
         p2y[5] = {-2, 1, 2, 1, -2};*/
-
+  /*
   float p1x[7] = {0, 1, 1.95, 0, -2.6, -4.7, -4},
         p1y[7] = {-3.75, -2, 1.4, 3, 2.6, 0, -4};
   float p2x[7] = {20, 22.75, 21.95, 20, 17.4, 16, 16},
         p2y[7] = {-3.75, -1.8, 1.4, 3, 2.6, 0, -4};
   Polygon polygon1 = {&p1x[0], &p1y[0], 7};
   Polygon polygon2 = {&p2x[0], &p2y[0], 7};
+  polygon_translate(&polygon2, 100, 50);
+  */
   int64_t p1, p2, q1, q2;
 
-  initial_phase(&polygon1, &polygon2, &p1, &p2, &q1, &q2);
-  printf("p1=%zu p2=%zu q1=%zu q2=%zu\n", p1, p2, q1, q2);
-  binary_elimination(&polygon1, &polygon2, &p1, &p2, &q1, &q2);
-  printf("p1=%zu p2=%zu q1=%zu q2=%zu\n", p1, p2, q1, q2);
-  float result = final_phase(
-      POLYGON_POINT((&polygon1), p1), POLYGON_POINT((&polygon1), p2),
-      POLYGON_POINT((&polygon2), q1), POLYGON_POINT((&polygon2), q1));
-  printf("%f\n", result);
-  // printf("%f\n", point_angle((Point){-2, 2}, (Point){-3, 4}, (Point){1, 1}));
+  initial_phase(polygon1, polygon2, &p1, &p2, &q1, &q2);
+  //printf("p1=%ld p2=%ld q1=%ld q2=%ld\n", p1, p2, q1, q2);
+
+  binary_elimination(polygon1, polygon2, &p1, &p2, &q1, &q2);
+
+  //printf("p1=%ld p2=%ld q1=%ld q2=%ld\n", p1, p2, q1, q2);
+  return final_phase(POLYGON_POINT(polygon1, p1), POLYGON_POINT(polygon1, p2),
+                     POLYGON_POINT(polygon2, q1), POLYGON_POINT(polygon2, q1));
 }

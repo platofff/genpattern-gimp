@@ -4,6 +4,7 @@
 #include "area.h"
 #include "misc.h"
 #include "translate.h"
+#include "polygon_distance.h"
 
 #include "test_image1._h"
 
@@ -13,7 +14,7 @@
 #include <unistd.h>
 
 
-#define WORK_SIZE 1
+#define WORK_SIZE 2
 
 void convex_polygon_thrd(void *_data) {
   CPThreadData *data = (CPThreadData *)(long)_data;
@@ -23,9 +24,9 @@ void convex_polygon_thrd(void *_data) {
     image_convex_hull(&params->polygon_ptrs[data->thread_id],
                       params->alpha_ptrs[data->thread_id],
                       params->t);
-    printf("%ld\n", params->polygon_ptrs[data->thread_id]->size);
-    polygon_translate(params->polygon_ptrs[data->thread_id], -56, 74);
-    printf("%f\n", polygon_area(params->polygon_ptrs[data->thread_id]));
+    //printf("%ld\n", params->polygon_ptrs[data->thread_id]->size);
+    //polygon_translate(params->polygon_ptrs[data->thread_id], -56, 74);
+    //printf("%f\n", polygon_area(params->polygon_ptrs[data->thread_id]));
     mtx_lock(&params->next_work_mtx);
     if (*params->next_work != 0) {
       data->thread_id = *params->next_work;
@@ -111,11 +112,17 @@ int main() {
       fprintf(stderr, "Failed to join thread %zu\n", i);
     }
   }
-
+  /*
   for (size_t i = 0; i < work.polygon_ptrs[0]->size; i++) {
     printf("(%f, %f), ", work.polygon_ptrs[0]->x_ptr[i], work.polygon_ptrs[0]->y_ptr[i]);
   }
   puts("");
+  */
+  polygon_translate(work.polygon_ptrs[1], -560, 2000);
+  work.polygon_ptrs[0]->size--; // remove last point
+  work.polygon_ptrs[1]->size--;
+  printf("%f\n", polygon_distance(work.polygon_ptrs[0], work.polygon_ptrs[1]));
+
 
   for (size_t i = 0; i < WORK_SIZE; i++) {
     polygon_free(work.polygon_ptrs[i]);
