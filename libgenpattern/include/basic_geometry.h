@@ -9,7 +9,7 @@ typedef struct {
 typedef struct {
     float *x_ptr;
     float *y_ptr;
-    int64_t size;
+    int32_t size;
 } Polygon;
 
 void polygon_free(Polygon *p);

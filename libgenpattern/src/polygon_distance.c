@@ -17,8 +17,6 @@ Implementation by Arkadii Chekha, 2022
 #include "misc.h"
 
 #include <math.h>
-#define M_PIF (float)(M_PI)
-#define M_PI_2F (float)(M_PI_2)
 #include <stdbool.h>
 #include <stdio.h>
 
@@ -33,10 +31,10 @@ static inline bool point_halfplane(const Point p1, const Point l1,
 }
 
 static inline void neighbors_halfplanes(const Polygon *polygon, const Point p,
-                                        const int64_t idx, bool *prev_hp,
+                                        const int32_t idx, bool *prev_hp,
                                         bool *next_hp) {
-  const int64_t prev_idx = PREV_IDX(polygon, idx);
-  const int64_t next_idx = NEXT_IDX(polygon, idx);
+  const int32_t prev_idx = PREV_IDX(polygon, idx);
+  const int32_t next_idx = NEXT_IDX(polygon, idx);
   const Point cur_p = POLYGON_POINT(polygon, idx);
   *prev_hp = point_halfplane(POLYGON_POINT(polygon, prev_idx), cur_p, p);
   *next_hp = point_halfplane(POLYGON_POINT(polygon, next_idx), cur_p, p);
@@ -44,9 +42,9 @@ static inline void neighbors_halfplanes(const Polygon *polygon, const Point p,
 
 static inline void binary_search_tangent(const Polygon *polygon,
                                          const Point point, const bool target,
-                                         int64_t *res) {
+                                         int32_t *res) {
   bool prev_hp, next_hp;
-  int64_t mid, low = 0, high = polygon->size - 1;
+  int32_t mid, low = 0, high = polygon->size - 1;
 
   while (low <= high) {
     mid = low + (high - low) / 2;
@@ -75,15 +73,15 @@ static inline void binary_search_tangent(const Polygon *polygon,
 }
 
 static inline void polygon_tangent_points(const Polygon *polygon,
-                                          const Point point, int64_t *t1_idx,
-                                          int64_t *t2_idx) {
+                                          const Point point, int32_t *t1_idx,
+                                          int32_t *t2_idx) {
   binary_search_tangent(polygon, point, 1, t1_idx);
   binary_search_tangent(polygon, point, 0, t2_idx);
 }
 
 static inline void initial_phase(const Polygon *polygon1,
-                                 const Polygon *polygon2, int64_t *p1,
-                                 int64_t *p2, int64_t *q1, int64_t *q2) {
+                                 const Polygon *polygon2, int32_t *p1,
+                                 int32_t *p2, int32_t *q1, int32_t *q2) {
   polygon_tangent_points(polygon1, POLYGON_POINT(polygon2, 0), p1, p2);
   polygon_tangent_points(polygon2, POLYGON_POINT(polygon1, 0), q1, q2);
 }
@@ -133,11 +131,11 @@ point_to_line_segment_distance(const Point l1, const Point l2, const Point p) {
   return sqrtf(dx * dx + dy * dy);
 }
 
-static inline int64_t median_idx(const int64_t size, const int64_t *i1,
-                                 const int64_t *i2) {
+static inline int32_t median_idx(const int32_t size, const int32_t *i1,
+                                 const int32_t *i2) {
   if (*i1 > *i2) {
-    const int64_t in1 = *i1 - size;
-    const int64_t resn = (*i2 + in1) / 2;
+    const int32_t in1 = *i1 - size;
+    const int32_t resn = (*i2 + in1) / 2;
     if (resn < 0) {
       return size + resn;
     }
@@ -146,16 +144,16 @@ static inline int64_t median_idx(const int64_t size, const int64_t *i1,
   return (*i1 + *i2) / 2;
 }
 
-static inline int64_t vertex_count(const int64_t size, const int64_t *i1,
-                                   const int64_t *i2) {
+static inline int32_t vertex_count(const int32_t size, const int32_t *i1,
+                                   const int32_t *i2) {
   if (*i1 > *i2) {
     return size - *i1 + *i2;
   }
   return *i2 - *i1;
 }
 
-static inline void binary_elimination_case1(int64_t *c1, int64_t *c2,
-                                            int64_t mc, float a_, float a__) {
+static inline void binary_elimination_case1(int32_t *c1, int32_t *c2,
+                                            int32_t mc, float a_, float a__) {
   if (a_ >= M_PI_2F) {
     *c1 = mc;
   }
@@ -166,9 +164,9 @@ static inline void binary_elimination_case1(int64_t *c1, int64_t *c2,
 
 static inline void binary_elimination_case2(const Polygon *polygon1,
                                             const Polygon *polygon2,
-                                            int64_t *c1, int64_t *c2,
-                                            int64_t mc, int64_t *d1,
-                                            int64_t *d2, int64_t md, float a_,
+                                            int32_t *c1, int32_t *c2,
+                                            int32_t mc, int32_t *d1,
+                                            int32_t *d2, int32_t md, float a_,
                                             float a__, float b_, float b__) {
   if (a_ > 0) { // Case 2.1
     // puts("case 2.1");
@@ -204,9 +202,9 @@ static inline void binary_elimination_case2(const Polygon *polygon1,
   }
 }
 
-static inline void binary_elimination_case3(int64_t *c1, int64_t *c2,
-                                            int64_t mc, int64_t *d1,
-                                            int64_t *d2, int64_t md, float a_,
+static inline void binary_elimination_case3(int32_t *c1, int32_t *c2,
+                                            int32_t mc, int32_t *d1,
+                                            int32_t *d2, int32_t md, float a_,
                                             float a__, float b_, float b__) {
   if (a_ > 0 && a__ > 0 && b_ > 0 && b__ > 0) { // Case 3.1
     if (a_ + b_ > M_PIF) {                       // (1)
@@ -235,21 +233,21 @@ static inline void binary_elimination_case3(int64_t *c1, int64_t *c2,
 }
 
 static inline void binary_elimination(const Polygon *polygon1,
-                                      const Polygon *polygon2, int64_t *p1,
-                                      int64_t *p2, int64_t *q1, int64_t *q2) {
+                                      const Polygon *polygon2, int32_t *p1,
+                                      int32_t *p2, int32_t *q1, int32_t *q2) {
 
-  int64_t vc_p, vc_q;
+  int32_t vc_p, vc_q;
   do {
     vc_p = vertex_count(polygon1->size, p1, p2);
     vc_q = vertex_count(polygon2->size, q1, q2);
     // printf("p1=%ld p2=%ld q1=%ld q2=%ld vc_p=%ld vc_q=%ld\n", *p1, *p2, *q1,
     //        *q2, vc_p, vc_q);
 
-    int64_t mp = median_idx(polygon1->size, p1, p2),
+    int32_t mp = median_idx(polygon1->size, p1, p2),
             mq = median_idx(polygon2->size, q1, q2);
     float alpha_ = 0, alpha__ = 0, beta_ = 0, beta__ = 0;
     if (vc_p == 1) {
-      int64_t pn;
+      int32_t pn;
       pn = *p1;
       mp = *p2;
       alpha_ =
@@ -265,7 +263,7 @@ static inline void binary_elimination(const Polygon *polygon1,
     }
 
     if (vc_q == 1) {
-      int64_t qn;
+      int32_t qn;
       qn = *q1;
       mq = *q2;
       beta__ =
@@ -362,7 +360,7 @@ float polygon_distance(Polygon *polygon1, Polygon *polygon2) {
   Polygon polygon2 = {&p2x[0], &p2y[0], 7};
   polygon_translate(&polygon2, 100, 50);
   */
-  int64_t p1, p2, q1, q2;
+  int32_t p1, p2, q1, q2;
 
   initial_phase(polygon1, polygon2, &p1, &p2, &q1, &q2);
   // printf("p1=%ld p2=%ld q1=%ld q2=%ld\n", p1, p2, q1, q2);
