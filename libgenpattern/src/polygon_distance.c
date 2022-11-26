@@ -15,16 +15,12 @@ Implementation by Arkadii Chekha, 2022
 
 #include "polygon_distance.h"
 #include "misc.h"
-// #include "translate.h"
 
 #include <math.h>
+#define M_PIF (float)(M_PI)
+#define M_PI_2F (float)(M_PI_2)
 #include <stdbool.h>
 #include <stdio.h>
-
-#ifdef __SSE__
-#include <stdalign.h>
-#include <xmmintrin.h>
-#endif
 
 #define POLYGON_POINT(polygon, idx)                                            \
   (Point) { polygon->x_ptr[idx], polygon->y_ptr[idx] }
@@ -102,34 +98,23 @@ static inline float point_angle(const Point center, const Point p2,
 
 static inline float point_to_line_segment_param(const Point l1, const Point l2,
                                                 const Point p, float *vals) {
-#ifdef __SSE__
-  __m128 v = _mm_setr_ps(p.x, p.y, l2.x, l2.y),
-         v2 = _mm_setr_ps(l1.x, l1.y, l1.x, l2.y);
-  v = _mm_sub_ps(v, v2);
-  v2 = _mm_shuffle_ps(v, v, _MM_SHUFFLE(3, 4, 3, 4)); // abcd -> cdcd
-  v = _mm_mul_ps(v, v2);
-  _mm_store_ps(&vals[0], v);
-  const float dot = vals[0] + vals[1];
-  const float len_sq = vals[2] + vals[3];
-#else
-  const float vals[0] = p.x - l1.x, vals[1] = p.y - l1.y, vals[2] = l2.x - l1.x,
-              vals[3] = l2.y - l1.y;
+  vals[0] = p.x - l1.x, vals[1] = p.y - l1.y, vals[2] = l2.x - l1.x,
+  vals[3] = l2.y - l1.y;
   const float dot = vals[0] * vals[2] + vals[1] * vals[3];
   const float len_sq = vals[2] * vals[2] + vals[3] * vals[3];
-#endif
   return dot / len_sq;
 }
 
 static inline bool orthogonal_projection_exists(const Point l1, const Point l2,
                                                 const Point p) {
-  alignas(16) float vals[4];
+  float vals[4];
   const float param = point_to_line_segment_param(l1, l2, p, &vals[0]);
   return 0 <= param && param <= 1;
 }
 
 static inline float
 point_to_line_segment_distance(const Point l1, const Point l2, const Point p) {
-  alignas(16) float vals[4];
+  float vals[4];
   const float param = point_to_line_segment_param(l1, l2, p, &vals[0]);
 
   float dx, dy;
@@ -171,10 +156,10 @@ static inline int64_t vertex_count(const int64_t size, const int64_t *i1,
 
 static inline void binary_elimination_case1(int64_t *c1, int64_t *c2,
                                             int64_t mc, float a_, float a__) {
-  if (a_ >= M_PI / 2) {
+  if (a_ >= M_PI_2F) {
     *c1 = mc;
   }
-  if (a__ >= M_PI / 2) {
+  if (a__ >= M_PI_2F) {
     *c2 = mc;
   }
 }
@@ -186,20 +171,20 @@ static inline void binary_elimination_case2(const Polygon *polygon1,
                                             int64_t *d2, int64_t md, float a_,
                                             float a__, float b_, float b__) {
   if (a_ > 0) { // Case 2.1
-    //puts("case 2.1");
-    if (a_ + b_ > M_PI) { // (1)
-      //puts("case 2.1.1");
-      if (a_ >= M_PI / 2) {
+    // puts("case 2.1");
+    if (a_ + b_ > M_PIF) { // (1)
+      // puts("case 2.1.1");
+      if (a_ >= M_PI_2F) {
         *c1 = *c2;
       }
-      if (b_ >= M_PI / 2) {
+      if (b_ >= M_PI_2F) {
         *d1 = md;
       }
-    } else if (b__ >= M_PI / 2) { // (2)
-      //puts("case 2.1.2");
+    } else if (b__ >= M_PI_2F) { // (2)
+      // puts("case 2.1.2");
       *d2 = md;
-    } else if (a_ < b__ && b__ < M_PI / 2) { // (3)
-      //puts("case 2.1.3");
+    } else if (a_ < b__ && b__ < M_PI_2F) { // (3)
+      // puts("case 2.1.3");
       if (orthogonal_projection_exists(POLYGON_POINT(polygon1, *c1),
                                        POLYGON_POINT(polygon1, *c2),
                                        POLYGON_POINT(polygon2, md))) {
@@ -210,10 +195,10 @@ static inline void binary_elimination_case2(const Polygon *polygon1,
     }
   } else { // Case 2.2
     *c2 = *c1;
-    if (b_ >= M_PI) {
+    if (b_ >= M_PIF) {
       *d1 = md;
     }
-    if (b__ >= M_PI) {
+    if (b__ >= M_PIF) {
       *d2 = md;
     }
   }
@@ -224,26 +209,26 @@ static inline void binary_elimination_case3(int64_t *c1, int64_t *c2,
                                             int64_t *d2, int64_t md, float a_,
                                             float a__, float b_, float b__) {
   if (a_ > 0 && a__ > 0 && b_ > 0 && b__ > 0) { // Case 3.1
-    if (a_ + b_ > M_PI) {                       // (1)
-      //puts("case 3.1.1");
-      if (a_ >= M_PI / 2) {
+    if (a_ + b_ > M_PIF) {                       // (1)
+      // puts("case 3.1.1");
+      if (a_ >= M_PI_2F) {
         *c1 = mc;
-      } else if (b_ >= M_PI / 2) {
+      } else if (b_ >= M_PI_2F) {
         *d1 = md;
       }
-    } else if (a__ + b__ > M_PI) { // (2)
-      //puts("case 3.1.2");
-      if (a__ >= M_PI / 2) {
+    } else if (a__ + b__ > M_PIF) { // (2)
+      // puts("case 3.1.2");
+      if (a__ >= M_PI_2F) {
         *c2 = mc;
-      } else if (b__ >= M_PI / 2) {
+      } else if (b__ >= M_PI_2F) {
         *d2 = md;
       }
     }
   } else { // Case 3.2
     *c2 = mc;
-    if (b_ >= M_PI) {
+    if (b_ >= M_PIF) {
       *d1 = md;
-    } else if (b__ >= M_PI) {
+    } else if (b__ >= M_PIF) {
       *d2 = md;
     }
   }
@@ -257,8 +242,8 @@ static inline void binary_elimination(const Polygon *polygon1,
   do {
     vc_p = vertex_count(polygon1->size, p1, p2);
     vc_q = vertex_count(polygon2->size, q1, q2);
-    //printf("p1=%ld p2=%ld q1=%ld q2=%ld vc_p=%ld vc_q=%ld\n", *p1, *p2, *q1,
-    //       *q2, vc_p, vc_q);
+    // printf("p1=%ld p2=%ld q1=%ld q2=%ld vc_p=%ld vc_q=%ld\n", *p1, *p2, *q1,
+    //        *q2, vc_p, vc_q);
 
     int64_t mp = median_idx(polygon1->size, p1, p2),
             mq = median_idx(polygon2->size, q1, q2);
@@ -295,8 +280,8 @@ static inline void binary_elimination(const Polygon *polygon1,
                            POLYGON_POINT(polygon1, mp));
     }
 
-    //printf("a'=%f a''=%f b'=%f b''=%f mp=%zu mq=%zu\n\n", alpha_, alpha__,
-    //       beta_, beta__, mp, mq);
+    // printf("a'=%f a''=%f b'=%f b''=%f mp=%zu mq=%zu\n\n", alpha_, alpha__,
+    //        beta_, beta__, mp, mq);
 
     // Case 1
     if (vc_p == 0) {
