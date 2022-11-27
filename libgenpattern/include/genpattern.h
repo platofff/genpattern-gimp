@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include <stdlib.h>
-#include <threads.h>
 
+#include <pthread.h>
 #include "basic_geometry.h"
 #include "convex_hull.h"
 
@@ -10,7 +10,7 @@ typedef struct {
   ImgAlpha **alpha_ptrs;
   uint8_t t;
   uint64_t *next_work;
-  mtx_t next_work_mtx;
+  pthread_mutex_t next_work_mtx;
 } CPParams;
 
 typedef struct {

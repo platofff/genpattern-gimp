@@ -1,4 +1,5 @@
-#pragma once
+#ifndef BASIC_GEOMETRY_H
+#define BASIC_GEOMETRY_H 1
 #include <stdint.h>
 
 typedef struct {
@@ -13,3 +14,4 @@ typedef struct {
 } Polygon;
 
 void polygon_free(Polygon *p);
+#endif

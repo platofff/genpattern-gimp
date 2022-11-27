@@ -1,10 +1,16 @@
 #include "basic_geometry.h"
 #include <stdlib.h>
 
+#ifdef _MSC_VER
+#include <malloc.h>
+#define aligned_alloc(alignment, size) _aligned_malloc(size, alignment)
+#endif
+
 /*
   Restrictions:
     dllist_push() after dllist_pop() is not always safe
     "size" is the maximal number of dllist_push() calls
+    order is reversed
 */
 
 typedef struct {

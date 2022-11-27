@@ -13,6 +13,11 @@
                   ptr[22 * w], ptr[23 * w], ptr[24 * w], ptr[25 * w],          \
                   ptr[26 * w], ptr[27 * w], ptr[28 * w], ptr[29 * w],          \
                   ptr[30 * w], ptr[31 * w])
+#ifdef _MSC_VER
+#include <intrin.h>
+#pragma intrinsic(_BitScanForward)
+#pragma intrinsic(_BitScanReverse)
+#endif
 #endif
 
 void convex_hull(DLElement **seq) {
@@ -64,7 +69,13 @@ void image_convex_hull(Polygon **polygon, ImgAlpha *alpha, uint8_t _t) {
       __m256i result = _mm256_cmpgt_epi8(vec, cmp_vec);
       int32_t cmp = _mm256_movemask_epi8(result);
       if (cmp != 0) {
-        j += 31 - __builtin_clz(*(unsigned int *)&cmp);
+#ifdef _MSC_VER
+        unsigned long lz = 0;
+        _BitScanReverse(&lz, *(unsigned long *)&cmp);
+        j += lz;
+#else
+        j += __builtin_clz(*(unsigned int *)&cmp) ^ 31;
+#endif
         seq = dllist_push(seq, (Point){i, j});
         min = j;
         goto continue_a;
@@ -98,7 +109,13 @@ void image_convex_hull(Polygon **polygon, ImgAlpha *alpha, uint8_t _t) {
       __m256i result = _mm256_cmpgt_epi8(vec, cmp_vec);
       int32_t cmp = _mm256_movemask_epi8(result);
       if (cmp != 0) {
-        i += 31 - __builtin_ctz(*(unsigned int *)&cmp);
+#ifdef _MSC_VER
+        unsigned long tz = 0;
+        _BitScanForward(&tz, *(unsigned long *)&cmp);
+        j += tz ^ 31;
+#else
+        i += __builtin_ctz(*(unsigned int *)&cmp) ^ 31;
+#endif
         seq = dllist_push(seq, (Point){i, j});
         min = i;
         goto continue_b;
@@ -132,7 +149,13 @@ void image_convex_hull(Polygon **polygon, ImgAlpha *alpha, uint8_t _t) {
       __m256i result = _mm256_cmpgt_epi8(vec, cmp_vec);
       int32_t cmp = _mm256_movemask_epi8(result);
       if (cmp != 0) {
+#ifdef _MSC_VER
+        unsigned long tz = 0;
+        _BitScanForward(&tz, *(unsigned long *)&cmp);
+        j += tz;
+#else
         j += __builtin_ctz(*(unsigned int *)&cmp);
+#endif
         seq = dllist_push(seq, (Point){i, j});
         max = j;
         goto continue_c;
@@ -163,7 +186,13 @@ void image_convex_hull(Polygon **polygon, ImgAlpha *alpha, uint8_t _t) {
       __m256i result = _mm256_cmpgt_epi8(vec, cmp_vec);
       int32_t cmp = _mm256_movemask_epi8(result);
       if (cmp != 0) {
+#ifdef _MSC_VER
+        unsigned long lz = 0;
+        _BitScanReverse(&lz, *(unsigned long *)&cmp);
+        j += lz ^ 31;
+#else
         i += __builtin_clz(*(unsigned int *)&cmp);
+#endif
         seq = dllist_push(seq, (Point){i, j});
         max = i;
         goto continue_d;
