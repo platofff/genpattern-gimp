@@ -9,6 +9,6 @@ typedef struct {
   float xmin, ymin, xmax, ymax;
 } GPBox;
 
-extern inline bool gp_boxes_intersect(GPBox box1, GPBox box2);
+bool gp_boxes_intersect(GPBox box1, GPBox box2);
 
 #endif

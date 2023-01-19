@@ -70,7 +70,7 @@ static inline void _gp_search_tangent(const GPPolygon* polygon, const GPPoint po
   float len = (b - a) * 2.f;
   int32_t n = -1, c, d;
 
-  for (int32_t i = 0; i < (int32_t)(sizeof(gp_fibonacci_numbers) / sizeof(double)); i++) {
+  for (int32_t i = 0; i < (int32_t)(sizeof(gp_fibonacci_numbers) / sizeof(float)); i++) {
     if (gp_fibonacci_numbers[i] >= len) {
       n = i;
       break;
