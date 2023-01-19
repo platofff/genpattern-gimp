@@ -4,11 +4,8 @@
 - [x] Convex hull extraction algorithm
   - [x] AVX support
 - [x] Polygon translation
-  - [x] AVX support (done by clang)
 - [x] Trapezoid formula
-  - [x] AVX support (done by clang)
-- [ ] Polygon intersection 
-  - [ ] Line segment intersection point
+- [x] Polygon intersection 
 - [x] Polygon distance (Edelsbrunner's algorithm)
 - [ ] Pattern search
 - [ ] R-Trees?

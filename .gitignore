@@ -1,3 +1,5 @@
 genpattern/*.pyc
 .vscode/*
 libgenpatten/build/*
+libgenpatten/.vs/*
+libgenpatten/out/*
