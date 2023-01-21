@@ -3,3 +3,4 @@ genpattern/*.pyc
 libgenpatten/build/*
 libgenpatten/.vs/*
 libgenpatten/out/*
+.vs/*

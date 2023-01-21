@@ -39,7 +39,7 @@ static inline void _gp_convex_hull(GPDLElement** seq) {
   }
 }
 
-void gp_image_convex_hull(GPPolygon* polygon, GPImgAlpha* alpha, uint8_t _t) {
+void gp_image_convex_hull(GPPolygon* polygon, GPImgAlpha* alpha, uint8_t _t, int32_t collection_id) {
   _t--;
 #ifdef __AVX2__
   int8_t t = *(int8_t*)(&_t);
@@ -211,4 +211,6 @@ void gp_image_convex_hull(GPPolygon* polygon, GPImgAlpha* alpha, uint8_t _t) {
 
   gp_dllist_dump(seq, polygon);
   gp_dllist_free(seq);
+
+  polygon->collection_id = collection_id;
 }

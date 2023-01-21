@@ -37,6 +37,7 @@ void gp_box_to_polygon(GPBox* box, GPPolygon* polygon) {
   polygon->base_offset.x = 0.f;
   polygon->base_offset.y = 0.f;
   polygon->area = gp_convex_area(polygon);
+  polygon->collection_id = -1;
 }
 
 void gp_canvas_outside_area(float xres, float yres, GPPolygon* polygons) {

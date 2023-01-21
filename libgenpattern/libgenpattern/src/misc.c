@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -10,7 +9,7 @@ static inline int32_t _gp_lrand(void) {
   return r | ((rand() & 1) << 30);
 }
 
-void gp_array_shuffle(void* _arr, int32_t sz, int32_t len) {
+void gp_array_shuffle(void* _arr, size_t sz, int32_t len) {
   int8_t* arr = (int8_t*)_arr;
   int8_t* tmp = malloc(sz);
   GP_CHECK_ALLOC(tmp);
