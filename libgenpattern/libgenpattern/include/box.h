@@ -10,5 +10,6 @@ typedef struct {
 } GPBox;
 
 bool gp_boxes_intersect(GPBox box1, GPBox box2);
+float gp_boxes_inner_distance(GPBox box1, GPBox box2);
 
 #endif

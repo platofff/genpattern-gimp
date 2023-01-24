@@ -13,6 +13,7 @@ typedef struct {
   GPImgAlpha* alphas;
   int32_t* collection_ids;
   uint8_t t;
+  GPPolygon canvas_polygon;
   size_t work_size;
   size_t* next_work;
   pthread_mutex_t next_work_mtx;

@@ -18,7 +18,16 @@ add_executable(libgenpattern
 			   "include/convex_distance.h"
 			   "include/polygon_translate.h"
 			   "test_images/test_image1._h"
- "src/misc.c" "src/convex_intersection_area.c" "include/convex_intersection_area.h" "src/box.c" "include/box.h" "include/polygon.h" "include/fibonacci.h")
+			   "src/misc.c"
+			   "src/convex_intersection_area.c"
+			   "include/convex_intersection_area.h"
+			   "src/box.c"
+			   "include/box.h"
+			   "include/polygon.h"
+			   "include/fibonacci.h"
+			   "include/suitability.h"
+			   "src/suitability.c"
+)
 set_property(TARGET ${PROJECT_NAME} PROPERTY C_STANDARD 17)
 if (CMAKE_C_COMPILER_ID STREQUAL "MSVC")
 	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /clang:-Ofast /clang:-flto /O2")

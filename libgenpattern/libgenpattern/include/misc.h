@@ -3,9 +3,14 @@
 
 #include <stdint.h>
 #include <stdio.h>
-#ifdef _MSC_VER
 #include <malloc.h>
+
+#include "basic_geometry.h"
+
+#ifdef _MSC_VER
 #define aligned_alloc(alignment, size) _aligned_malloc(size, alignment)
+#else
+#define _aligned_free(ptr) free(ptr)
 #endif
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
@@ -15,6 +20,7 @@
 #define M_2PIF (M_PIF * 2.f) // 2pi
 
 void gp_array_shuffle(void* _arr, size_t sz, int32_t len);
+void gp_mesh_init(float x, float y, float resolution, GPVector** mesh, size_t* len);
 
 #define GP_CHECK_ALLOC(ptr)                     \
   if (ptr == NULL) {                            \

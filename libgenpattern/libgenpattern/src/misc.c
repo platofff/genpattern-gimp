@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "misc.h"
 
@@ -20,4 +21,18 @@ void gp_array_shuffle(void* _arr, size_t sz, int32_t len) {
     memcpy(&arr[j * sz], tmp, sz);
   }
   free(tmp);
+}
+
+void gp_mesh_init(float x, float y, float resolution, GPVector** mesh, size_t* len) {
+  size_t n = x / resolution;
+  size_t m = y / resolution;
+  *len = m * n;
+  *mesh = malloc(*len * sizeof(GPVector));
+  GP_CHECK_ALLOC(*mesh);
+  for (size_t i = 0; i < n; i++) {
+    for (size_t j = 0; j < m; j++) {
+      (*mesh)[n * i + j].x = i * resolution;
+      (*mesh)[n * i + j].y = j * resolution;
+    }
+  }
 }

@@ -1,11 +1,6 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
-#ifndef _MSC_VER
-#define _aligned_free(ptr) free(ptr)
-#else
-#include <malloc.h>
-#endif
 
 #include "convex_area.h"
 #include "misc.h"
@@ -14,7 +9,6 @@
 void gp_polygon_free(GPPolygon* p) {
   _aligned_free(p->x_ptr);
   _aligned_free(p->y_ptr);
-  free(p);
 }
 
 void gp_box_to_polygon(GPBox* box, GPPolygon* polygon) {
@@ -40,6 +34,7 @@ void gp_box_to_polygon(GPBox* box, GPPolygon* polygon) {
   polygon->collection_id = -1;
 }
 
+/*
 void gp_canvas_outside_area(float xres, float yres, GPPolygon* polygons) {
   float mval = MAX(xres, yres);
   GPBox box1 = {.xmin = -mval, .ymin = -mval, .xmax = 0.f, .ymax = yres + mval};
@@ -50,4 +45,21 @@ void gp_canvas_outside_area(float xres, float yres, GPPolygon* polygons) {
   gp_box_to_polygon(&box2, &polygons[1]);
   gp_box_to_polygon(&box3, &polygons[2]);
   gp_box_to_polygon(&box4, &polygons[3]);
+}
+*/
+
+void gp_polygon_copy(GPPolygon* dst, GPPolygon* src) {
+  memcpy(dst, src, sizeof(GPPolygon));
+  
+  size_t fsize = sizeof(float) * dst->size;
+  dst->x_ptr = NULL;
+  dst->x_ptr = aligned_alloc(32, fsize);
+  GP_CHECK_ALLOC(dst->x_ptr);
+  dst->y_ptr = NULL;
+  dst->y_ptr = aligned_alloc(32, fsize);
+  GP_CHECK_ALLOC(dst->y_ptr);
+
+  // meaningless in my case
+  //memcpy(dst->x_ptr, src->x_ptr, fsize);
+  //memcpy(dst->y_ptr, src->y_ptr, fsize);
 }

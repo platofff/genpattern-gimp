@@ -3,6 +3,6 @@
 
 #include "polygon.h"
 
-void gp_polygon_translate(GPPolygon* polygon, float x_off_val, float y_off_val);
+void gp_polygon_translate(GPPolygon* dst_polygon, GPPolygon* src_polygon, float x_off_val, float y_off_val);
 
 #endif

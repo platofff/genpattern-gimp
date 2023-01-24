@@ -1,10 +1,9 @@
 #include "genpattern.h"
 #include "basic_geometry.h"
 #include "convex_area.h"
-#include "convex_distance.h"
 #include "convex_hull.h"
-#include "convex_intersection_area.h"
 #include "misc.h"
+#include "suitability.h"
 #include "polygon_translate.h"
 
 #include <stdarg.h>
@@ -35,17 +34,16 @@ void* _gp_convex_polygon_thrd(void* _data) {
   GPCPParams* params = data->params;
   while (1) {
     printf("Running thread id: %zu\n", data->thread_id);
-    gp_image_convex_hull(&params->polygons[data->thread_id], &params->alphas[data->thread_id - 4], params->t,
-                         params->collection_ids[data->thread_id - 4]);
-    gp_polygon_translate(&params->polygons[data->thread_id], 21, 20);
-    float s = 1000000.f;
-    for (int32_t i = 0; i < 4; i++) {
-      bool intersected;
-      float r = gp_convex_distance(&params->polygons[data->thread_id], &params->polygons[i]);
-      s = MIN(s, r);
-      // printf("%f %d\n", r, intersected);
-    }
+    GPPolygon* polygon = &params->polygons[data->thread_id];
+    GPImgAlpha* alpha = &params->alphas[data->thread_id];
+    int32_t collection_id = params->collection_ids[data->thread_id];
+
+    gp_image_convex_hull(polygon, alpha, params->t, collection_id);
+
+    gp_polygon_translate(polygon, polygon, 56, -17);
+    float s = gp_suitability(polygon, params->polygons, 0, &params->canvas_polygon);
     printf("Distance: %f\n", s);
+
     pthread_mutex_lock(&params->next_work_mtx);
     if (*params->next_work != 0) {
       data->thread_id = *params->next_work;
@@ -75,10 +73,13 @@ int gp_genpattern(GPImgAlpha* alphas,
   pthread_t* threads = NULL;
   GPCPThreadData* threads_data = NULL;
 
-  work.polygons = malloc((4 + out_len) * sizeof(GPPolygon));
+  GPBox canvas_box = {.xmin = 0.f, .ymin = 0.f, .xmax = canvas_width, .ymax = canvas_height};
+  gp_box_to_polygon(&canvas_box, &work.canvas_polygon);
+
+  work.polygons = malloc(out_len * sizeof(GPPolygon));
   GP_CHECK_ALLOC(work.polygons);
 
-  gp_canvas_outside_area(canvas_width, canvas_height, work.polygons);
+  // gp_canvas_outside_area(canvas_width, canvas_height, work.polygons);
 
   work.collection_ids = malloc(out_len * sizeof(int32_t));
   GP_CHECK_ALLOC(work.collection_ids);
@@ -110,7 +111,7 @@ int gp_genpattern(GPImgAlpha* alphas,
 
   for (size_t i = 0; i < threads_size; i++) {
     threads_data[i].params = &work;
-    threads_data[i].thread_id = i + 4;
+    threads_data[i].thread_id = i;
     int rc = pthread_create(&threads[i], NULL, _gp_convex_polygon_thrd, (void*)(threads_data + i));
     if (rc != 0) {
       PANIC("Thread creation error!");
@@ -124,6 +125,9 @@ int gp_genpattern(GPImgAlpha* alphas,
   }
 
 cleanup:
+  for (int32_t i = 0; i < out_len; i++) {
+    gp_polygon_free(&work.polygons[i]);
+  }
   free(work.polygons);
   free(work.collection_ids);
   free(threads_data);

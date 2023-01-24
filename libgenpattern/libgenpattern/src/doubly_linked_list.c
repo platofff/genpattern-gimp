@@ -80,7 +80,7 @@ void gp_dllist_dump(GPDLElement* el, GPPolygon* res) {
 
   res->base_offset.x = -res->bounds.xmin;
   res->base_offset.y = -res->bounds.ymin;
-  gp_polygon_translate(res, res->base_offset.x, res->base_offset.y);
+  gp_polygon_translate(res, res, res->base_offset.x, res->base_offset.y);
 
   res->area = gp_convex_area(res);
 }
