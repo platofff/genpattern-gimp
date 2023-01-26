@@ -12,7 +12,6 @@ typedef struct {
   GPBox bounds;
   GPVector base_offset;
   float area;
-  int32_t collection_id;
 } GPPolygon;
 
 void gp_polygon_free(GPPolygon* p);

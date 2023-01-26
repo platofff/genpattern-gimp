@@ -12,6 +12,6 @@ typedef struct {
   uint8_t* data;
 } GPImgAlpha;
 
-void gp_image_convex_hull(GPPolygon* polygon, GPImgAlpha* alpha, uint8_t _t, int32_t collection_id);
+void gp_image_convex_hull(GPPolygon* polygon, GPImgAlpha* alpha, uint8_t _t);
 
 #endif

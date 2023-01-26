@@ -31,7 +31,6 @@ void gp_box_to_polygon(GPBox* box, GPPolygon* polygon) {
   polygon->base_offset.x = 0.f;
   polygon->base_offset.y = 0.f;
   polygon->area = gp_convex_area(polygon);
-  polygon->collection_id = -1;
 }
 
 /*
@@ -49,17 +48,16 @@ void gp_canvas_outside_area(float xres, float yres, GPPolygon* polygons) {
 */
 
 void gp_polygon_copy(GPPolygon* dst, GPPolygon* src) {
-  memcpy(dst, src, sizeof(GPPolygon));
-  
-  size_t fsize = sizeof(float) * dst->size;
-  dst->x_ptr = NULL;
-  dst->x_ptr = aligned_alloc(32, fsize);
-  GP_CHECK_ALLOC(dst->x_ptr);
-  dst->y_ptr = NULL;
-  dst->y_ptr = aligned_alloc(32, fsize);
-  GP_CHECK_ALLOC(dst->y_ptr);
+  dst->area = src->area;
+  dst->base_offset.x = src->base_offset.x;
+  dst->base_offset.y = src->base_offset.y;
+  dst->bounds.xmax = src->bounds.xmax;
+  dst->bounds.xmin = src->bounds.xmin;
+  dst->bounds.ymax = src->bounds.ymax;
+  dst->bounds.ymin = src->bounds.ymin;
+  dst->size = src->size;
 
-  // meaningless in my case
-  //memcpy(dst->x_ptr, src->x_ptr, fsize);
-  //memcpy(dst->y_ptr, src->y_ptr, fsize);
+  // TODO
+  //memcpy(dst->x_ptr, src->x_ptr, src->size * sizeof(float));
+  //memcpy(dst->y_ptr, src->y_ptr, src->size * sizeof(float));
 }
