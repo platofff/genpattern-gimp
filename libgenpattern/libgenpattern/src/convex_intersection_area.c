@@ -16,12 +16,13 @@ Modified for an intersection area computation and handling polygon includes poly
 
 #include "convex_area.h"
 #include "convex_intersection_area.h"
+#include "misc.h"
 
 typedef enum { GP_IN_UNKNOWN, GP_IN_P, GP_IN_Q } GPInFlag;
 
-static inline float _gp_area_sign(const GPPoint p1, const GPPoint l1, const GPPoint l2) {
-  return (p1.x - l1.x) * (l2.y - l1.y) - (p1.y - l1.y) * (l2.x - l1.x);
-}
+static inline float _gp_area_sign(const GPPoint p1, const GPPoint p2, const GPPoint p3) {
+  return (p3.x - p2.x) * (p2.y - p1.y) - (p2.x - p1.x) * (p3.y - p2.y);
+}  // TODO common
 
 // Formula from https://en.wikipedia.org/wiki/Line%E2%80%93line_intersection#Given_two_points_on_each_line_segment
 static inline bool _gp_line_segment_intersection(GPPoint p1, GPPoint p2, GPPoint p3, GPPoint p4, GPPoint* res) {
@@ -29,6 +30,10 @@ static inline bool _gp_line_segment_intersection(GPPoint p1, GPPoint p2, GPPoint
         y1_y3 = p1.y - p3.y;
 
   float denominator = x1_x2 * y3_y4 - y1_y2 * x3_x4;
+  if (fabsf(denominator) < EPSILON) {
+    return false;
+  }
+
   float t = (x1_x3 * y3_y4 - y1_y3 * x3_x4) / denominator;
   float u = (x1_x3 * y1_y2 - y1_y3 * x1_x2) / denominator;
 
@@ -42,6 +47,7 @@ static inline bool _gp_line_segment_intersection(GPPoint p1, GPPoint p2, GPPoint
 }
 
 static inline GPInFlag _gp_in_out(GPPoint p, GPInFlag inflag, float a_hb, float b_ha, GPPoint* last_point, float* res) {
+  //printf("(%f,%f),", p.x, p.y);
   *res += (last_point->x * p.y) - (last_point->y * p.x);
   last_point->x = p.x;
   last_point->y = p.y;
@@ -65,6 +71,7 @@ static inline int32_t _gp_advance(int32_t a,
     *res += (last_point->x * v.y) - (last_point->y * v.x);
     last_point->x = v.x;
     last_point->y = v.y;
+    //printf("(%f,%f),", v.x, v.y);
   }
   (*aa)++;
   return GP_NEXT_IDX(polygon, a);
@@ -117,15 +124,16 @@ float gp_convex_intersection_area(GPPolygon* polygon1, GPPolygon* polygon2, bool
         last_point.y = p.y;
         p0.x = p.x;
         p0.y = p.y;
+        //printf("(%f,%f),", p0.x, p0.y);
       }
       inflag = _gp_in_out(p, inflag, a_hb, b_ha, &last_point, &res);
     }
 
-    if (fpclassify(cross) == FP_ZERO && fpclassify(a_hb) == FP_ZERO && fpclassify(b_ha) == FP_ZERO) {
+    if (fabsf(cross) < EPSILON && fabsf(a_hb) < EPSILON && fabsf(b_ha) < EPSILON) {
       if (inflag == GP_IN_P) {
-        b = _gp_advance(b, &ba, polygon2, false, &last_point, &res);
+        b = _gp_advance(b, &ba, polygon2, inflag == GP_IN_Q, &last_point, &res);
       } else {
-        a = _gp_advance(a, &aa, polygon1, false, &last_point, &res);
+        a = _gp_advance(a, &aa, polygon1, inflag == GP_IN_P, &last_point, &res);
       }
     } else if (cross >= 0.f) {
       if (b_ha > 0.f) {
@@ -144,7 +152,8 @@ float gp_convex_intersection_area(GPPolygon* polygon1, GPPolygon* polygon2, bool
 
   res += (last_point.x * p0.y) - (last_point.y * p0.x);
   *intersected = !first_point;
-  if (fpclassify(res) == FP_ZERO) {
+
+  if (res < EPSILON) {
     if (p_in_q) {
       return polygon1->area;
     }
@@ -152,5 +161,6 @@ float gp_convex_intersection_area(GPPolygon* polygon1, GPPolygon* polygon2, bool
       return polygon2->area;
     }
   }
-  return res * 0.5f;
+
+  return res * .5f;
 }

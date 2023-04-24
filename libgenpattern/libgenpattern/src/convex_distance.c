@@ -22,10 +22,10 @@ Implementation by Arkadii Chekha, 2022
 #include <stdbool.h>
 #include <stdio.h>
 
-#define EPSILON 0.001f
 
-static inline bool _gp_point_halfplane(const GPPoint p1, const GPPoint l1, const GPPoint l2) {
-  return ((p1.x - l1.x) * (l2.y - l1.y) - (p1.y - l1.y) * (l2.x - l1.x)) >= 0;
+static inline float _gp_area_sign(const GPPoint p1, const GPPoint p2, const GPPoint p3) {
+  float res = (p2.x - p1.x) * (p3.y - p2.y) - (p3.x - p2.x) * (p2.y - p1.y);
+  return res;
 }
 
 static inline void _gp_neighbors_halfplanes(const GPPolygon* polygon,
@@ -36,8 +36,18 @@ static inline void _gp_neighbors_halfplanes(const GPPolygon* polygon,
   const int32_t prev_idx = GP_PREV_IDX(polygon, idx);
   const int32_t next_idx = GP_NEXT_IDX(polygon, idx);
   const GPPoint cur_p = GP_POLYGON_POINT(polygon, idx);
-  *prev_hp = _gp_point_halfplane(GP_POLYGON_POINT(polygon, prev_idx), cur_p, p);
-  *next_hp = _gp_point_halfplane(GP_POLYGON_POINT(polygon, next_idx), cur_p, p);
+  float prev_sign = _gp_area_sign(p, cur_p, GP_POLYGON_POINT(polygon, prev_idx));
+  float next_sign = _gp_area_sign(p, cur_p, GP_POLYGON_POINT(polygon, next_idx));
+
+  if (fpclassify(prev_sign) == FP_ZERO) {
+    prev_sign = next_sign;
+  }
+  if (fpclassify(next_sign) == FP_ZERO) {
+    next_sign = prev_sign;
+  }
+
+  *prev_hp = prev_sign >= 0;
+  *next_hp = next_sign >= 0;
 }
 
 static inline float _gp_vector_angle(const GPVector a, const GPVector b) {
@@ -45,13 +55,41 @@ static inline float _gp_vector_angle(const GPVector a, const GPVector b) {
   return fmodf(fmodf(angle, M_2PIF) + M_2PIF, M_2PIF);
 }
 
-static inline float _gp_vector_angle_basic(const GPVector a, const GPVector b) {
-  return atan2f(a.x * b.y - a.y * b.x, a.x * b.x + a.y * b.y);
+static inline double _gp_vector_angle_basic(double ax, double ay, double bx, double by) {
+  return atan2(ax * by - ay * bx, ax * bx + ay * by);
 }
 
 // An unimodal function optimization using Fibonacci search
 // https://web.archive.org/web/20191201003031/http://mathfaculty.fullerton.edu/mathews/n2003/FibonacciSearchMod.html
 static inline void _gp_search_tangent(const GPPolygon* polygon, const GPPoint point, const bool target, int32_t* res) {
+  /*
+  float prev_hp, next_hp;
+  GPPoint prev_p, next_p, p;
+
+  while (1) {
+    for (int32_t i = 0; i < polygon->size; i++) {
+      //_gp_neighbors_halfplanes(polygon, point, i, &prev_hp, &next_hp);
+      prev_p = GP_POLYGON_POINT(polygon, GP_PREV_IDX(polygon, i)),
+      next_p = GP_POLYGON_POINT(polygon, GP_NEXT_IDX(polygon, i)), p = GP_POLYGON_POINT(polygon, i);
+      prev_hp = _gp_area_sign(prev_p, p, point);
+      next_hp = _gp_area_sign(next_p, p, point);
+
+      if (fpclassify(prev_hp) == FP_ZERO) {
+        prev_hp = next_hp;
+      }
+      if (fpclassify(next_hp) == FP_ZERO) {
+        next_hp = prev_hp;
+      }
+
+      if ((prev_hp >= 0 && next_hp >= 0 && target) || (next_hp < 0 && prev_hp < 0 && !target)) {
+        *res = i;
+        return;
+      }
+    }
+    assert(false);
+    puts("");
+  }*/
+  
   float a = 0.f;
   float b = polygon->size - 1;
   bool prev, next;
@@ -80,23 +118,24 @@ static inline void _gp_search_tangent(const GPPolygon* polygon, const GPPoint po
 
   int32_t max = n - 3;
   GPPoint p0 = GP_POLYGON_POINT(polygon, 0), pc, pd;
-  GPVector vec0 = {.x = p0.x - point.x, .y = p0.y - point.y}, vec_c, vec_d;
-  float angle_c, angle_d, r;
+  double vec0x = p0.x - point.x;
+  double vec0y = p0.y - point.y;
+  double angle_c, angle_d, r, vec_cx, vec_cy, vec_dx, vec_dy;
 
   for (int32_t k = 1; k != max; k++) {
     r = gp_fibonacci_numbers[n - k - 1] / gp_fibonacci_numbers[n - k];
-    c = roundf(a + (b - a) * (1.f - r));
-    d = roundf(a + (b - a) * r);
+    c = round(a + (b - a) * (1.f - r));
+    d = round(a + (b - a) * r);
 
     pc = GP_POLYGON_POINT(polygon, c);
     pd = GP_POLYGON_POINT(polygon, d);
-    vec_c.x = pc.x - point.x;
-    vec_c.y = pc.y - point.y;
-    vec_d.x = pd.x - point.x;
-    vec_d.y = pd.y - point.y;
+    vec_cx = pc.x - point.x;
+    vec_cy = pc.y - point.y;
+    vec_dx = pd.x - point.x;
+    vec_dy = pd.y - point.y;
 
-    angle_c = _gp_vector_angle_basic(vec0, vec_c);
-    angle_d = _gp_vector_angle_basic(vec0, vec_d);
+    angle_c = _gp_vector_angle_basic(vec0x, vec0y, vec_cx, vec_cy);
+    angle_d = _gp_vector_angle_basic(vec0x, vec0y, vec_dx, vec_dy);
 
     if (target) {
       if (angle_c <= angle_d) {
@@ -113,14 +152,24 @@ static inline void _gp_search_tangent(const GPPolygon* polygon, const GPPoint po
     }
   }
 
-  for (int32_t i = a; i <= b; i++) {
-    _gp_neighbors_halfplanes(polygon, point, i, &prev, &next);
-    if (prev == target && next == target) {
-      *res = i;
-      return;
+  *res = a;
+  /*
+  int32_t astart = GP_PREV_IDX(polygon, (int32_t)a);
+  int32_t bend = GP_NEXT_IDX(polygon, (int32_t)b);
+
+  while (1) {
+    for (int32_t i = astart; i != bend; i = GP_NEXT_IDX(polygon, i)) {
+      _gp_neighbors_halfplanes(polygon, point, i, &prev, &next);
+      //if (prev == target && next == target) {
+      if (prev == next) {
+        *res = i;
+        return;
+      }
     }
+    puts("");
   }
   assert(false);
+  */
 }
 
 static inline void _gp_polygon_tangent_points(const GPPolygon* polygon,

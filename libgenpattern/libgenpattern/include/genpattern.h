@@ -6,6 +6,7 @@
 #include <stdlib.h>
 
 #include "convex_hull.h"
+#include "exports.h"
 #include "polygon.h"
 
 typedef union {
@@ -21,6 +22,7 @@ typedef union {
     int32_t collection_len;
     GPVector* grid;
     size_t current;
+    float target;
   } gp;
   struct {
     GPPolygon* polygons;
@@ -40,14 +42,18 @@ typedef struct {
   size_t thread_id;
 } GPThreadData;
 
-int gp_genpattern(GPImgAlpha* alphas,
-                  int32_t* collections_sizes,
-                  int32_t collections_len,
-                  int32_t canvas_width,
-                  int32_t canvas_height,
-                  uint8_t t,
-                  int32_t grid_resolution,
-                  int32_t out_len,
-                  GPVector* out);
+LIBGENPATTERN_API int gp_init(void);
+
+LIBGENPATTERN_API int gp_genpattern(GPImgAlpha* alphas,
+                                    int32_t* collections_sizes,
+                                    int32_t collections_len,
+                                    int32_t canvas_width,
+                                    int32_t canvas_height,
+                                    uint8_t t,
+                                    int32_t min_dist,
+                                    int32_t grid_resolution,
+                                    int32_t out_len,
+                                    GPVector* out,
+                                    size_t threads_num);
 
 #endif

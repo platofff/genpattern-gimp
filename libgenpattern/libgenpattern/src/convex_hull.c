@@ -17,29 +17,30 @@
 #endif
 #endif
 
-static inline void _gp_convex_hull(GPDLElement** seq) {
+static inline void _gp_convex_hull(GPDList** seq) {
+  GPDLElement* el = (*seq)->start;
   while (1) {
-    GPDLElement *next = (*seq)->next, *nextnext = next->next;
-    GPPoint *e = &(*seq)->value, *e1 = &next->value, *e2 = &nextnext->value;
+    GPDLElement *next = el->next, *nextnext = next->next;
+    GPPoint *e = &el->value, *e1 = &next->value, *e2 = &nextnext->value;
     float p = (e1->y - e->y) * (e2->x - e1->x) - (e1->x - e->x) * (e2->y - e1->y);
     if (p > 0) {
-      if (((GPDLElement*)nextnext->next)->next == NULL) {
+      if ((nextnext->next)->next == NULL) {
         break;
       }
-      *seq = next;
+      el = next;
     } else {
-      gp_dllist_pop(next);
-      GPDLElement* prev = (*seq)->prev;
-      if (prev->prev != NULL) {
-        *seq = prev;
+      gp_dllist_pop(*seq, next);
+      GPDLElement* prev = el->prev;
+      if (prev != NULL) {
+        el = prev;
       } else {
-        *seq = next;
+        el = next;
       }
     }
   }
 }
 
-void gp_image_convex_hull(GPPolygon* polygon, GPImgAlpha* alpha, uint8_t _t) {
+int gp_image_convex_hull(GPPolygon* polygon, GPImgAlpha* alpha, uint8_t _t) {
   _t--;
 #ifdef __AVX2__
   int8_t t = *(int8_t*)(&_t);
@@ -48,8 +49,11 @@ void gp_image_convex_hull(GPPolygon* polygon, GPImgAlpha* alpha, uint8_t _t) {
   __m256i signed_convert_mask = _mm256_set1_epi8(0b10000000);
 #endif
   size_t buf_size = 2 * (alpha->width + alpha->height) + 1;  // perimeter of the image
-  GPDLElement* seq = gp_dllist_alloc(buf_size);
-  GPDLElement* seq_start = seq;
+  GPDList* seq;
+  int res = gp_dllist_alloc(&seq);
+  if (res != 0) {
+    return -1;
+  }
 
   // a
   int32_t min = 0;
@@ -58,19 +62,28 @@ void gp_image_convex_hull(GPPolygon* polygon, GPImgAlpha* alpha, uint8_t _t) {
 #ifdef __AVX2__
     j = alpha->height - 32;
     for (; j > min; j -= 32) {
+      // load 32 uchars from the row into an AVX regsiter. Each uchar represents alpha value from 0 to 255.
       __m256i vec = _mm256_load_si256((const __m256i*)&alpha->data[i * alpha->width + j]);
+      // flip most significant bit to compare these uchars as signed chars (no instruction for comparing uchars
+      // directly)
       vec = _mm256_xor_si256(vec, signed_convert_mask);
       __m256i result = _mm256_cmpgt_epi8(vec, cmp_vec);
+      // load bitmask containing comparison results (one bit for each alpha value compared with target-1)
       int32_t cmp = _mm256_movemask_epi8(result);
-      if (cmp != 0) {
+      if (cmp != 0) {  // if any alpha value exceeds target-1
 #ifdef _MSC_VER
         unsigned long lz = 0;
+        // get the index of the first positive comparison result (BitScanReverse yields first positive bit in comparison
+        // bitmask read in little endian)
         _BitScanReverse(&lz, *(unsigned long*)&cmp);
-        j += lz;
+        j += lz;  // store the index of the first alpha value exceeding target-1 in j
 #else
-        j += __builtin_clz(*(unsigned int*)&cmp) ^ 31;
+        j += __builtin_clz(*(unsigned int*)&cmp) ^ 31;  // it compiles to bsr too
 #endif
-        seq = gp_dllist_push(seq, (GPPoint){i, j});
+        res = gp_dllist_push(seq, (GPPoint){i, j});
+        if (res != 0) {
+          return 0;
+        }
         min = j;
         goto continue_a;
       }
@@ -81,7 +94,10 @@ void gp_image_convex_hull(GPPolygon* polygon, GPImgAlpha* alpha, uint8_t _t) {
 #endif
     for (; j > min; j--) {
       if (alpha->data[i * alpha->width + j] > _t) {
-        seq = gp_dllist_push(seq, (GPPoint){i, j});
+        res = gp_dllist_push(seq, (GPPoint){i, j});
+        if (res != 0) {
+          return 0;
+        }
         min = j;
         break;
       }
@@ -110,7 +126,10 @@ void gp_image_convex_hull(GPPolygon* polygon, GPImgAlpha* alpha, uint8_t _t) {
 #else
         i += __builtin_ctz(*(unsigned int*)&cmp) ^ 31;
 #endif
-        seq = gp_dllist_push(seq, (GPPoint){i, j});
+        res = gp_dllist_push(seq, (GPPoint){i, j});
+        if (res != 0) {
+          return 0;
+        }
         min = i;
         goto continue_b;
       }
@@ -121,7 +140,10 @@ void gp_image_convex_hull(GPPolygon* polygon, GPImgAlpha* alpha, uint8_t _t) {
 #endif
     for (; i > min; i--) {
       if (alpha->data[i * alpha->width + j] > _t) {
-        seq = gp_dllist_push(seq, (GPPoint){i, j});
+        res = gp_dllist_push(seq, (GPPoint){i, j});
+        if (res != 0) {
+          return 0;
+        }
         min = i;
         break;
       }
@@ -149,7 +171,10 @@ void gp_image_convex_hull(GPPolygon* polygon, GPImgAlpha* alpha, uint8_t _t) {
 #else
         j += __builtin_ctz(*(unsigned int*)&cmp);
 #endif
-        seq = gp_dllist_push(seq, (GPPoint){i, j});
+        res = gp_dllist_push(seq, (GPPoint){i, j});
+        if (res != 0) {
+          return 0;
+        }
         max = j;
         goto continue_c;
       }
@@ -157,7 +182,10 @@ void gp_image_convex_hull(GPPolygon* polygon, GPImgAlpha* alpha, uint8_t _t) {
 #endif
     for (; j < max; j++) {
       if (alpha->data[i * alpha->width + j] > _t) {
-        seq = gp_dllist_push(seq, (GPPoint){i, j});
+        res = gp_dllist_push(seq, (GPPoint){i, j});
+        if (res != 0) {
+          return 0;
+        }
         max = j;
         break;
       }
@@ -186,7 +214,10 @@ void gp_image_convex_hull(GPPolygon* polygon, GPImgAlpha* alpha, uint8_t _t) {
 #else
         i += __builtin_clz(*(unsigned int*)&cmp);
 #endif
-        seq = gp_dllist_push(seq, (GPPoint){i, j});
+        res = gp_dllist_push(seq, (GPPoint){i, j});
+        if (res != 0) {
+          return 0;
+        }
         max = i;
         goto continue_d;
       }
@@ -194,7 +225,10 @@ void gp_image_convex_hull(GPPolygon* polygon, GPImgAlpha* alpha, uint8_t _t) {
 #endif
     for (; i < max; i++) {
       if (alpha->data[i * alpha->width + j] > _t) {
-        seq = gp_dllist_push(seq, (GPPoint){i, j});
+        res = gp_dllist_push(seq, (GPPoint){i, j});
+        if (res != 0) {
+          return 0;
+        }
         max = i;
         break;
       }
@@ -203,12 +237,14 @@ void gp_image_convex_hull(GPPolygon* polygon, GPImgAlpha* alpha, uint8_t _t) {
     continue;
   }
 
-  GPDLElement* first_element = seq_start->next;
-  gp_dllist_push(seq, first_element->value);
-  gp_dllist_to_start(&seq);
+  res = gp_dllist_push(seq, seq->start->value);
+  if (res != 0) {
+    return res;
+  }
 
   _gp_convex_hull(&seq);
 
-  gp_dllist_dump(seq, polygon);
+  gp_dllist_to_polygon(seq, polygon);
   gp_dllist_free(seq);
+  return 0;
 }

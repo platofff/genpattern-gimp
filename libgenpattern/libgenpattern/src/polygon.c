@@ -11,7 +11,7 @@ void gp_polygon_free(GPPolygon* p) {
   _aligned_free(p->y_ptr);
 }
 
-void gp_box_to_polygon(GPBox* box, GPPolygon* polygon) {
+int gp_box_to_polygon(GPBox* box, GPPolygon* polygon) {
   polygon->x_ptr = aligned_alloc(32, 4 * sizeof(float));
   GP_CHECK_ALLOC(polygon->x_ptr);
   polygon->y_ptr = aligned_alloc(32, 4 * sizeof(float));
@@ -31,6 +31,7 @@ void gp_box_to_polygon(GPBox* box, GPPolygon* polygon) {
   polygon->base_offset.x = 0.f;
   polygon->base_offset.y = 0.f;
   polygon->area = gp_convex_area(polygon);
+  return 0;
 }
 
 /*
@@ -56,8 +57,10 @@ void gp_polygon_copy(GPPolygon* dst, GPPolygon* src) {
   dst->bounds.ymax = src->bounds.ymax;
   dst->bounds.ymin = src->bounds.ymin;
   dst->size = src->size;
+}
 
-  // TODO
-  //memcpy(dst->x_ptr, src->x_ptr, src->size * sizeof(float));
-  //memcpy(dst->y_ptr, src->y_ptr, src->size * sizeof(float));
+void gp_polygon_copy_all(GPPolygon* dst, GPPolygon* src) {
+  gp_polygon_copy(dst, src);
+  memcpy(dst->x_ptr, src->x_ptr, src->size * sizeof(float));
+  memcpy(dst->y_ptr, src->y_ptr, src->size * sizeof(float));
 }

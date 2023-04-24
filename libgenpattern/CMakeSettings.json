@@ -14,7 +14,8 @@
                     "type": "STRING"
                 }
             ],
-            "inheritEnvironments": []
+            "inheritEnvironments": [],
+            "debugCommand": ""
         },
         {
             "name": "x64-Clang-Debug",

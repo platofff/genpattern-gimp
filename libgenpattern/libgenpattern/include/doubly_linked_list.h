@@ -5,24 +5,22 @@
 
 #include "polygon.h"
 
-/*
-  Restrictions:
-    gp_dllist_push() after gp_dllist_pop() is not always safe
-    "size" is the maximal number of gp_dllist_push() calls
-    order is reversed
-*/
-
-typedef struct {
-  void* prev;
-  void* next;
+typedef struct GPDLElement {
+  struct GPDLElement* prev;
+  struct GPDLElement* next;
   GPPoint value;
 } GPDLElement;
 
-GPDLElement* gp_dllist_alloc(int32_t size);
-void gp_dllist_free(GPDLElement* el);
-GPDLElement* gp_dllist_push(GPDLElement* el, GPPoint value);
-GPDLElement* gp_dllist_pop(GPDLElement* el);  // returns next
-void gp_dllist_dump(GPDLElement* el, GPPolygon* res);
-void gp_dllist_to_start(GPDLElement** el);
+typedef struct {
+  GPDLElement* start;
+  GPDLElement* end;
+  int32_t size;
+} GPDList;
+
+int gp_dllist_alloc(GPDList** res);
+void gp_dllist_free(GPDList* list);
+int gp_dllist_push(GPDList* list, GPPoint value);
+GPDLElement* gp_dllist_pop(GPDList* list, GPDLElement* el);  // returns next
+int gp_dllist_to_polygon(GPDList* list, GPPolygon* res);
 
 #endif

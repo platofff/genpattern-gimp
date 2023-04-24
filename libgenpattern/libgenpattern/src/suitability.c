@@ -14,19 +14,13 @@ static inline float _gp_borders_suitability(GPPolygon* polygon, GPPolygon* canva
          gp_convex_intersection_area(canvas, polygon, intersected);  // TODO: do it without boxes intersection check
 }
 
-float gp_suitability(GPPolygon* polygon,
-                     float target,
-                     GPPolygon* polygons,
-                     int32_t polygons_len,
-                     GPPolygon* collection,
-                     int32_t collection_len,
-                     GPPolygon* canvas) {
+float gp_suitability(GPSParams p) {
   bool intersected = false;
-  float res = _gp_borders_suitability(polygon, canvas, &intersected);
+  float res = _gp_borders_suitability(p.polygon, p.canvas, &intersected);
 
-  for (int32_t i = 0; i < polygons_len; i++) {
+  for (int32_t i = 0; i < p.polygons_len; i++) {
     bool _intersected;
-    float intersection = gp_convex_intersection_area(polygon, &polygons[i], &_intersected);
+    float intersection = gp_convex_intersection_area(p.polygon, &p.polygons[i], &_intersected);
     if (_intersected) {
       if (!intersected) {
         intersected = true;
@@ -40,9 +34,9 @@ float gp_suitability(GPPolygon* polygon,
     return res;
   }
 
-  res = MAX(res, -target);
-  for (int32_t i = 0; i < collection_len; i++) {
-    float dist = -gp_convex_distance(polygon, &collection[i]);
+  res = MAX(res, -p.target);
+  for (int32_t i = 0; i < p.collection_len; i++) {
+    float dist = -gp_convex_distance(p.polygon, &p.collection[i]);
     res = MAX(res, dist);
   }
 

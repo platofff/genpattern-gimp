@@ -4,12 +4,17 @@
 #include "box.h"
 #include "polygon.h"
 
-float gp_suitability(GPPolygon* polygon,
-                     float target,
-                     GPPolygon* polygons,
-                     int32_t polygons_len,
-                     GPPolygon* collection,
-                     int32_t collection_len,
-                     GPPolygon* canvas);
+typedef struct {
+  GPPolygon* polygon;
+  float target;
+  GPPolygon* polygons;
+  int32_t polygons_len;
+  GPPolygon* collection;
+  int32_t collection_len;
+  GPPolygon* canvas;
+  GPPolygon* ref;
+} GPSParams;
+
+float gp_suitability(GPSParams p);
 
 #endif

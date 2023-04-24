@@ -1,6 +1,7 @@
 include_directories(include)
 include_directories(test_images)
-add_executable(libgenpattern
+add_library(libgenpattern SHARED
+#add_executable(libgenpattern
 			   "src/convex_area.c"
 			   "src/polygon.c"
 			   "src/convex_hull.c"
@@ -17,7 +18,6 @@ add_executable(libgenpattern
 			   "include/misc.h"
 			   "include/convex_distance.h"
 			   "include/polygon_translate.h"
-			   "test_images/test_image1._h"
 			   "src/misc.c"
 			   "src/convex_intersection_area.c"
 			   "include/convex_intersection_area.h"
@@ -27,7 +27,12 @@ add_executable(libgenpattern
 			   "include/fibonacci.h"
 			   "include/suitability.h"
 			   "src/suitability.c"
-)
+			   "include/hooke.h"
+			   "src/hooke.c"
+			   "include/errors.h"
+			   "include/exports.h"
+			   "include/debug.h"
+			   "src/debug.c")
 set_property(TARGET ${PROJECT_NAME} PROPERTY C_STANDARD 17)
 if (CMAKE_C_COMPILER_ID STREQUAL "MSVC")
 	set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /clang:-Ofast /clang:-flto /O2")

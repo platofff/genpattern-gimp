@@ -9,4 +9,6 @@ void gp_polygon_translate(GPPolygon* dst_polygon, GPPolygon* src_polygon, float 
   dst_polygon->bounds.xmin = src_polygon->bounds.xmin + x_off_val;
   dst_polygon->bounds.ymax = src_polygon->bounds.ymax + y_off_val;
   dst_polygon->bounds.ymin = src_polygon->bounds.ymin + y_off_val;
+  dst_polygon->base_offset.x = src_polygon->base_offset.x + x_off_val;
+  dst_polygon->base_offset.y = src_polygon->base_offset.y + y_off_val;
 }
