@@ -26,7 +26,7 @@ float gp_suitability(GPSParams p) {
     if (_intersected) {
       if (!intersected) {
         intersected = true;
-        res = .0f;
+        res = 0.f;
       }
       res += intersection_area;
     }

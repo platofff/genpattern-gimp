@@ -77,7 +77,7 @@ void gp_polygon_add_point(GPPolygon* polygon, GPPoint point) {
   polygon->size++;
 }
 
-int gp_polygon_init_empty(GPPolygon *res, int32_t max_size) {
+int gp_polygon_init_empty(GPPolygon* res, int32_t max_size) {
   res->size = 0;
   res->x_ptr = aligned_alloc(32, sizeof(float) * max_size);
   GP_CHECK_ALLOC(res->x_ptr);
@@ -87,5 +87,28 @@ int gp_polygon_init_empty(GPPolygon *res, int32_t max_size) {
   res->bounds.ymin = INFINITY;
   res->bounds.xmax = -INFINITY;
   res->bounds.ymax = -INFINITY;
+  res->base_offset.x = 0;
+  res->base_offset.y = 0;
+  return 0;
+}
+
+// polygons buffer size must be at least 8
+int gp_canvas_outside_areas(float xres, float yres, GPPolygon* polygons) {
+  GPBox boxes[8] = {{.xmin = -INFINITY, .ymin = 0.f, .xmax = 0.f, .ymax = yres},
+                    {.xmin = -INFINITY, .ymin = -INFINITY, .xmax = xres, .ymax = 0.f},
+                    {.xmin = 0.f, .ymin = yres, .xmax = xres, .ymax = INFINITY},
+                    {.xmin = xres, .ymin = 0.f, .xmax = INFINITY, .ymax = yres},
+                    // Corner boxes
+                    {.xmin = -INFINITY, .ymin = -INFINITY, .xmax = 0.f, .ymax = 0.f},
+                    {.xmin = xres, .ymin = -INFINITY, .xmax = INFINITY, .ymax = 0.f},
+                    {.xmin = xres, .ymin = yres, .xmax = INFINITY, .ymax = INFINITY},
+                    {.xmin = -INFINITY, .ymin = yres, .xmax = 0.f, .ymax = INFINITY}};
+
+  for (int32_t i = 0; i < 8; i++) {
+    int res = gp_box_to_polygon(&boxes[i], &polygons[i]);
+    if (res != 0) {
+      return res;
+    }
+  }
   return 0;
 }

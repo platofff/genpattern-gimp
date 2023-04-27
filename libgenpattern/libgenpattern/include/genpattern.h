@@ -23,6 +23,7 @@ typedef union {
     GPVector* grid;
     size_t current;
     float target;
+    GPPolygon* canvas_outside_areas;
   } gp;
   struct {
     GPPolygon* polygons;

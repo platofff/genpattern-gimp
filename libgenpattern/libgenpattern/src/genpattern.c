@@ -23,44 +23,58 @@ static inline size_t _gp_nproc(void) {
 }
 #endif
 
+// This is the entry point for each thread that computes the minimal convex hulls of images.
 void* _gp_convex_polygon_thrd(void* _data) {
+  // Cast the input data to the appropriate structure (GPThreadData).
   GPThreadData* data = (GPThreadData*)_data;
   GPParams* params = data->params;
   int32_t img_id = data->thread_id;
+
+  // Main loop for processing images.
   while (1) {
-    // printf("Running thread id: %zu\n", data->thread_id);
+    // Get the polygon and the alpha channel for the current image ID.
     GPPolygon* polygon = &params->cp.polygons[img_id];
     GPImgAlpha* alpha = &params->cp.alphas[img_id];
 
+    // Compute the convex hull of the image using its alpha channel and the given threshold.
     int res = gp_image_convex_hull(polygon, alpha, params->cp.t);
+
     if (res != 0) {
       pthread_exit(&res);
     }
 
+    // Lock the mutex to safely update the shared data structures.
     pthread_mutex_lock(&params->cp.next_work_mtx);
+
+    // Update the maximum polygon size if necessary.
     if (*params->cp.max_size < polygon->size) {
       *params->cp.max_size = polygon->size;
     }
+
+    // If there's more work to do, update the image ID and continue processing.
     if (*params->cp.next_work != 0) {
       img_id = *params->cp.next_work;
       *params->cp.next_work += 1;
       if (*params->cp.next_work == params->cp.work_size) {
         *params->cp.next_work = 0;
       }
+      // Unlock the mutex before continuing with the next image.
       pthread_mutex_unlock(&params->cp.next_work_mtx);
       continue;
     }
 
+    // If there's no more work, unlock the mutex and exit the thread.
     pthread_mutex_unlock(&params->cp.next_work_mtx);
     return NULL;
   }
 }
 
+
 void* _gp_generate_pattern_thrd(void* _data) {
   GPThreadData* data = (GPThreadData*)_data;
   GPParams* params = data->params;
 
-  GPPolygon* polygon_buffer = &params->gp.polygon_buffers[data->thread_id];
+  GPPolygon* polygon_buffer = &params->gp.polygon_buffers[data->thread_id * 4];
   GPPolygon* ref = &params->gp.polygons[params->gp.current];
   gp_polygon_copy(polygon_buffer, ref);
   int32_t node_id = data->thread_id;
@@ -153,6 +167,7 @@ LIBGENPATTERN_API int gp_genpattern(GPImgAlpha* alphas,
   threads_data = malloc(threads_num * sizeof(GPThreadData));
   GP_CHECK_ALLOC(threads_data);
 
+  // Each thread processes a single image at a time, and when done, it picks up the next image to process.
   for (size_t i = 0; i < threads_num; i++) {
     threads_data[i].params = &work;
     threads_data[i].thread_id = i;
@@ -174,31 +189,50 @@ LIBGENPATTERN_API int gp_genpattern(GPImgAlpha* alphas,
   // Generate pattern
 
   work.gp.target = min_dist;
-  work.gp.polygon_buffers = NULL;
-  work.gp.polygon_buffers = malloc(threads_num * sizeof(GPPolygon));
+  /*
+  Allocating 4 polygon buffers per thread. Out of these four polygon buffers, one is used
+  for the main part of the polygon, while the other three are used for its parts that may
+  cross over to the other sides of the canvas. This ensures that the algorithm can
+  properly handle polygons that wrap around the canvas edges.
+  */
+  work.gp.polygon_buffers = malloc(threads_num * 4 * sizeof(GPPolygon));
   GP_CHECK_ALLOC(work.gp.polygon_buffers);
 
+  /*
+  In order to use these polygon buffers, we need to take into account the polygons
+  that cross the canvas boundaries and reappear on the other side. Since the intersection
+  of two convex polygons can have at most m + n vertices in the worst-case scenario, it
+  is reasonable to add 3 vertices to the maximum length of each buffer, rather than 4.
+  This is because the space outside the canvas extends to infinity, and it is possible to
+  intersect a maximum of 3 of its edges.
+  */
+  max_size += 3;
   for (int32_t i = 0; i < threads_num; i++) {
-    work.gp.polygon_buffers[i].x_ptr = NULL;
-    work.gp.polygon_buffers[i].y_ptr = NULL;
     work.gp.polygon_buffers[i].x_ptr = aligned_alloc(32, sizeof(float) * max_size);
     GP_CHECK_ALLOC(work.gp.polygon_buffers[i].x_ptr);
     work.gp.polygon_buffers[i].y_ptr = aligned_alloc(32, sizeof(float) * max_size);
     GP_CHECK_ALLOC(work.gp.polygon_buffers[i].y_ptr);
   }
 
-  size_t grid_len = 1000;
+  size_t grid_len;
   exitcode = gp_grid_init(canvas_width, canvas_height, grid_resolution, &work.gp.grid, &grid_len);
   if (exitcode != 0) {
     return exitcode;
   }
   GPVector* shuffle_buf = malloc(grid_len * sizeof(GPVector));
   gp_array_shuffle(work.gp.grid, shuffle_buf, sizeof(GPVector), grid_len);
-
+  
   work.gp.collection = work.gp.polygons;
   int32_t collection_id = 0;
   work.gp.collection_len = 0;
   int32_t start_work = MIN(threads_num, grid_len);
+
+  GPPolygon canvas_outside_areas[8];
+  exitcode = gp_canvas_outside_areas(canvas_width, canvas_height, canvas_outside_areas);
+  if (exitcode != 0) {
+    return exitcode;
+  }
+  work.gp.canvas_outside_areas = canvas_outside_areas;
 
   for (work.gp.current = 0; work.gp.current < out_len; work.gp.current++) {
     work.gp.work_size = grid_len;
@@ -239,6 +273,9 @@ LIBGENPATTERN_API int gp_genpattern(GPImgAlpha* alphas,
   }
   for (int32_t i = 0; i < threads_num; i++) {
     gp_polygon_free(&work.gp.polygon_buffers[i]);
+  }
+  for (int32_t i = 0; i < 8; i++) {
+    gp_polygon_free(&canvas_outside_areas[i]);
   }
   free(work.gp.grid);
   free(work.gp.polygons);
@@ -286,7 +323,7 @@ int main() {
 
   free(alphas);
   free(offsets);
-    
+
 
 
   GPDList *list1, *list2;
@@ -319,8 +356,11 @@ int main() {
   }
 
   GPPolygon polygon1, polygon2, canvas;
+  GPPolygon corners[8];
+  gp_canvas_outside_areas(1000, 1000, corners);
+
   gp_dllist_to_polygon(list1, &polygon1);
-  gp_polygon_translate(&polygon1, &polygon1, 340, 307);
+  gp_polygon_translate(&polygon1, &polygon1, -120, 0);
 
   //gp_debug_polygons(&polygon1, 1);
   gp_dllist_to_polygon(list1, &polygon2);
@@ -334,10 +374,9 @@ int main() {
 
   bool intersected = false;
 
-  float res = gp_convex_intersection_area(&polygon1, &polygon2, &intersected);
-  printf("%f\n", res);
-
-  float s = gp_suitability((GPSParams){&polygon2, 10, &polygon1, 1, &polygon1, 1, &canvas, NULL});
-
+  float res;
+  GPPolygon pol;
+  gp_polygon_init_empty(&pol, 175);
+  gp_convex_intersection_area(&polygon1, &corners[0], &intersected, NULL, &pol);
   printf("%f\n", res);
 }*/

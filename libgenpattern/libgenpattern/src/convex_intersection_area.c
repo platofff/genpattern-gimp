@@ -41,7 +41,7 @@ static inline bool _gp_line_segment_intersection(const GPPoint p1,
   float t = (x1_x3 * y3_y4 - y1_y3 * x3_x4) / denominator;
   float u = (x1_x3 * y1_y2 - y1_y3 * x1_x2) / denominator;
 
-  if (.0f <= t && t <= 1.0f && .0f <= u && u <= 1.0f) {
+  if (0.f <= t && t <= 1.f && 0.f <= u && u <= 1.f) {
     res->x = p1.x + t * (p2.x - p1.x);
     res->y = p1.y + t * (p2.y - p1.y);
     return true;
@@ -100,7 +100,7 @@ void gp_convex_intersection_area(const GPPolygon* polygon1,
   if (res_area == NULL) {
     res_area = &res_polygon->area;
   }
-  *res_area = .0f;
+  *res_area = 0.f;
   if (!gp_boxes_intersect(polygon1->bounds, polygon2->bounds)) {
     *intersected = false;
     return;
