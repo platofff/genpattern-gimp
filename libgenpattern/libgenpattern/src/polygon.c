@@ -48,7 +48,7 @@ void gp_canvas_outside_area(float xres, float yres, GPPolygon* polygons) {
 }
 */
 
-void gp_polygon_copy(GPPolygon* dst, GPPolygon* src) {
+void gp_polygon_copy(GPPolygon* dst, const GPPolygon* src) {
   dst->area = src->area;
   dst->base_offset.x = src->base_offset.x;
   dst->base_offset.y = src->base_offset.y;
@@ -59,8 +59,33 @@ void gp_polygon_copy(GPPolygon* dst, GPPolygon* src) {
   dst->size = src->size;
 }
 
-void gp_polygon_copy_all(GPPolygon* dst, GPPolygon* src) {
+void gp_polygon_copy_all(GPPolygon* dst, const GPPolygon* src) {
   gp_polygon_copy(dst, src);
   memcpy(dst->x_ptr, src->x_ptr, src->size * sizeof(float));
   memcpy(dst->y_ptr, src->y_ptr, src->size * sizeof(float));
+}
+
+// Doesn't compute area
+// Doesn't check array bounds
+void gp_polygon_add_point(GPPolygon* polygon, GPPoint point) {
+  polygon->bounds.xmin = MIN(polygon->bounds.xmin, point.x);
+  polygon->bounds.ymin = MIN(polygon->bounds.ymin, point.y);
+  polygon->bounds.xmax = MAX(polygon->bounds.xmax, point.x);
+  polygon->bounds.ymax = MAX(polygon->bounds.ymax, point.y);
+  polygon->x_ptr[polygon->size] = point.x;
+  polygon->y_ptr[polygon->size] = point.y;
+  polygon->size++;
+}
+
+int gp_polygon_init_empty(GPPolygon *res, int32_t max_size) {
+  res->size = 0;
+  res->x_ptr = aligned_alloc(32, sizeof(float) * max_size);
+  GP_CHECK_ALLOC(res->x_ptr);
+  res->y_ptr = aligned_alloc(32, sizeof(float) * max_size);
+  GP_CHECK_ALLOC(res->y_ptr);
+  res->bounds.xmin = INFINITY;
+  res->bounds.ymin = INFINITY;
+  res->bounds.xmax = -INFINITY;
+  res->bounds.ymax = -INFINITY;
+  return 0;
 }

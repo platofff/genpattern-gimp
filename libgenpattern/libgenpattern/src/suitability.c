@@ -10,8 +10,9 @@ static inline float _gp_borders_suitability(GPPolygon* polygon, GPPolygon* canva
   if (dist <= 0) {
     return dist;
   }
-  return polygon->area -
-         gp_convex_intersection_area(canvas, polygon, intersected);
+  float intersection_area;
+  gp_convex_intersection_area(canvas, polygon, intersected, &intersection_area, NULL);
+  return polygon->area - intersection_area;
 }
 
 float gp_suitability(GPSParams p) {
@@ -20,13 +21,14 @@ float gp_suitability(GPSParams p) {
 
   for (int32_t i = 0; i < p.polygons_len; i++) {
     bool _intersected;
-    float intersection = gp_convex_intersection_area(p.polygon, &p.polygons[i], &_intersected);
+    float intersection_area;
+    gp_convex_intersection_area(p.polygon, &p.polygons[i], &_intersected, &intersection_area, NULL);
     if (_intersected) {
       if (!intersected) {
         intersected = true;
-        res = 0.f;
+        res = .0f;
       }
-      res += intersection;
+      res += intersection_area;
     }
   }
 

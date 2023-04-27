@@ -3,6 +3,10 @@
 
 #include "polygon.h"
 
-float gp_convex_intersection_area(GPPolygon* polygon1, GPPolygon* polygon2, bool *intersected);
+void gp_convex_intersection_area(const GPPolygon* polygon1,
+                                 const GPPolygon* polygon2,
+                                 bool* intersected,
+                                 float* res_area,
+                                 GPPolygon* res_polygon);
 
 #endif

@@ -15,9 +15,11 @@ typedef struct {
 } GPPolygon;
 
 void gp_polygon_free(GPPolygon* p);
-void gp_polygon_copy(GPPolygon* dst, GPPolygon* src);
-void gp_polygon_copy_all(GPPolygon* dst, GPPolygon* src);
+void gp_polygon_copy(GPPolygon* dst, const GPPolygon* src);
+void gp_polygon_copy_all(GPPolygon* dst, const GPPolygon* src);
 int gp_box_to_polygon(GPBox* box, GPPolygon* polygon);
+void gp_polygon_add_point(GPPolygon* polygon, GPPoint point);
+int gp_polygon_init_empty(GPPolygon* res, int32_t max_size);
 
 #define GP_POLYGON_POINT(polygon, idx) \
   (GPPoint) { polygon->x_ptr[idx], polygon->y_ptr[idx] }

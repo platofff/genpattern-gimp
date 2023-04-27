@@ -25,7 +25,11 @@ static inline float _gp_area_sign(const GPPoint p1, const GPPoint p2, const GPPo
 }  // TODO common
 
 // Formula from https://en.wikipedia.org/wiki/Line%E2%80%93line_intersection#Given_two_points_on_each_line_segment
-static inline bool _gp_line_segment_intersection(GPPoint p1, GPPoint p2, GPPoint p3, GPPoint p4, GPPoint* res) {
+static inline bool _gp_line_segment_intersection(const GPPoint p1,
+                                                 const GPPoint p2,
+                                                 const GPPoint p3,
+                                                 const GPPoint p4,
+                                                 GPPoint* res) {
   float x1_x2 = p1.x - p2.x, y3_y4 = p3.y - p4.y, y1_y2 = p1.y - p2.y, x3_x4 = p3.x - p4.x, x1_x3 = p1.x - p3.x,
         y1_y3 = p1.y - p3.y;
 
@@ -37,7 +41,7 @@ static inline bool _gp_line_segment_intersection(GPPoint p1, GPPoint p2, GPPoint
   float t = (x1_x3 * y3_y4 - y1_y3 * x3_x4) / denominator;
   float u = (x1_x3 * y1_y2 - y1_y3 * x1_x2) / denominator;
 
-  if (0.0f <= t && t <= 1.0f && 0.0f <= u && u <= 1.0f) {
+  if (.0f <= t && t <= 1.0f && .0f <= u && u <= 1.0f) {
     res->x = p1.x + t * (p2.x - p1.x);
     res->y = p1.y + t * (p2.y - p1.y);
     return true;
@@ -46,11 +50,19 @@ static inline bool _gp_line_segment_intersection(GPPoint p1, GPPoint p2, GPPoint
   return false;
 }
 
-static inline GPInFlag _gp_in_out(GPPoint p, GPInFlag inflag, float a_hb, float b_ha, GPPoint* last_point, float* res) {
-  //printf("(%f,%f),", p.x, p.y);
-  *res += (last_point->x * p.y) - (last_point->y * p.x);
+static inline GPInFlag _gp_in_out(const GPPoint p,
+                                  const GPInFlag inflag,
+                                  const float a_hb,
+                                  const float b_ha,
+                                  GPPoint* last_point,
+                                  float* res_area,
+                                  GPPolygon* res_polygon) {
+  *res_area += (last_point->x * p.y) - (last_point->y * p.x);
   last_point->x = p.x;
   last_point->y = p.y;
+  if (res_polygon != NULL) {
+    gp_polygon_add_point(res_polygon, p);
+  }
   if (a_hb > 0) {
     return GP_IN_P;
   }
@@ -60,28 +72,38 @@ static inline GPInFlag _gp_in_out(GPPoint p, GPInFlag inflag, float a_hb, float 
   return inflag;
 }
 
-static inline int32_t _gp_advance(int32_t a,
+static inline int32_t _gp_advance(const int32_t a,
                                   int32_t* aa,
-                                  GPPolygon* polygon,
-                                  bool inside,
+                                  const GPPolygon* polygon,
+                                  const bool inside,
                                   GPPoint* last_point,
-                                  float* res) {
+                                  float* res_area,
+                                  GPPolygon *res_polygon) {
   if (inside) {
     GPPoint v = GP_POLYGON_POINT(polygon, a);
-    *res += (last_point->x * v.y) - (last_point->y * v.x);
+    *res_area += (last_point->x * v.y) - (last_point->y * v.x);
+    if (res_polygon != NULL) {
+      gp_polygon_add_point(res_polygon, v);
+    }
     last_point->x = v.x;
     last_point->y = v.y;
-    //printf("(%f,%f),", v.x, v.y);
   }
   (*aa)++;
   return GP_NEXT_IDX(polygon, a);
 }
 
-float gp_convex_intersection_area(GPPolygon* polygon1, GPPolygon* polygon2, bool* intersected) {
-  float res = 0.0f;
+void gp_convex_intersection_area(const GPPolygon* polygon1,
+                                 const GPPolygon* polygon2,
+                                 bool* intersected,
+                                 float* res_area,
+                                 GPPolygon* res_polygon) {
+  if (res_area == NULL) {
+    res_area = &res_polygon->area;
+  }
+  *res_area = .0f;
   if (!gp_boxes_intersect(polygon1->bounds, polygon2->bounds)) {
     *intersected = false;
-    return res;
+    return;
   }
   int32_t points_size = 0;
   GPInFlag inflag = GP_IN_UNKNOWN;
@@ -124,43 +146,55 @@ float gp_convex_intersection_area(GPPolygon* polygon1, GPPolygon* polygon2, bool
         last_point.y = p.y;
         p0.x = p.x;
         p0.y = p.y;
-        //printf("(%f,%f),", p0.x, p0.y);
+        if (res_polygon != NULL) {
+          gp_polygon_add_point(res_polygon, p0);
+        }
       }
-      inflag = _gp_in_out(p, inflag, a_hb, b_ha, &last_point, &res);
+      inflag = _gp_in_out(p, inflag, a_hb, b_ha, &last_point, res_area, res_polygon);
     }
 
     if (fabsf(cross) < EPSILON && fabsf(a_hb) < EPSILON && fabsf(b_ha) < EPSILON) {
       if (inflag == GP_IN_P) {
-        b = _gp_advance(b, &ba, polygon2, inflag == GP_IN_Q, &last_point, &res);
+        b = _gp_advance(b, &ba, polygon2, inflag == GP_IN_Q, &last_point, res_area, res_polygon);
       } else {
-        a = _gp_advance(a, &aa, polygon1, inflag == GP_IN_P, &last_point, &res);
+        a = _gp_advance(a, &aa, polygon1, inflag == GP_IN_P, &last_point, res_area, res_polygon);
       }
     } else if (cross >= 0.f) {
       if (b_ha > 0.f) {
-        a = _gp_advance(a, &aa, polygon1, inflag == GP_IN_P, &last_point, &res);
+        a = _gp_advance(a, &aa, polygon1, inflag == GP_IN_P, &last_point, res_area, res_polygon);
       } else {
-        b = _gp_advance(b, &ba, polygon2, inflag == GP_IN_Q, &last_point, &res);
+        b = _gp_advance(b, &ba, polygon2, inflag == GP_IN_Q, &last_point, res_area, res_polygon);
       }
     } else {
       if (a_hb > 0.f) {
-        b = _gp_advance(b, &ba, polygon2, inflag == GP_IN_Q, &last_point, &res);
+        b = _gp_advance(b, &ba, polygon2, inflag == GP_IN_Q, &last_point, res_area, res_polygon);
       } else {
-        a = _gp_advance(a, &aa, polygon1, inflag == GP_IN_P, &last_point, &res);
+        a = _gp_advance(a, &aa, polygon1, inflag == GP_IN_P, &last_point, res_area, res_polygon);
       }
     }
   } while ((aa < polygon1->size || ba < polygon2->size) && aa < 2 * polygon1->size && ba < 2 * polygon2->size);
 
-  res += (last_point.x * p0.y) - (last_point.y * p0.x);
+  *res_area += (last_point.x * p0.y) - (last_point.y * p0.x);
   *intersected = !first_point;
 
-  if (res < EPSILON) {
+  if (*res_area < EPSILON) {
     if (p_in_q) {
-      return polygon1->area;
+      if (res_polygon != NULL) {
+        gp_polygon_copy_all(res_polygon, polygon1);
+        return;
+      }
+      *res_area = polygon1->area;
+      return;
     }
     if (q_in_p) {
-      return polygon2->area;
+      if (res_polygon != NULL) {
+        gp_polygon_copy_all(res_polygon, polygon2);
+        return;
+      }
+      *res_area = polygon2->area;
+      return;
     }
   }
 
-  return res * .5f;
+  *res_area *= .5f;
 }

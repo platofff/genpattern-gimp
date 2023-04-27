@@ -55,25 +55,14 @@ GPDLElement *gp_dllist_pop(GPDList *list, GPDLElement *el) {
 }
 
 int gp_dllist_to_polygon(GPDList* list, GPPolygon* res) {
-  res->size = list->size - 1; // remove the last point as it's equal to the first one
+  int i_res = gp_polygon_init_empty(res, list->size - 1); // remove the last point as it's equal to the first one
+  if (i_res != 0) {
+    return i_res;
+  }
 
-  res->x_ptr = aligned_alloc(32, sizeof(float) * res->size);
-  GP_CHECK_ALLOC(res->x_ptr);
-  res->y_ptr = aligned_alloc(32, sizeof(float) * res->size);
-  GP_CHECK_ALLOC(res->y_ptr);
-  res->bounds.xmin = INFINITY;
-  res->bounds.ymin = INFINITY;
-  res->bounds.xmax = -INFINITY;
-  res->bounds.ymax = -INFINITY;
-
-  GPDLElement *el = list->end;
-  for (size_t i = 0; i < res->size; i++) {
-    res->bounds.xmin = MIN(res->bounds.xmin, el->value.x);
-    res->bounds.ymin = MIN(res->bounds.ymin, el->value.y);
-    res->bounds.xmax = MAX(res->bounds.xmax, el->value.x);
-    res->bounds.ymax = MAX(res->bounds.ymax, el->value.y);
-    res->x_ptr[i] = el->value.x;
-    res->y_ptr[i] = el->value.y;
+  GPDLElement *el = list->end->prev;
+  while (el != NULL) {
+    gp_polygon_add_point(res, el->value);
     el = el->prev;
   }
 
