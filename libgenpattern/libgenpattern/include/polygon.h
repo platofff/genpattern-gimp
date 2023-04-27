@@ -27,4 +27,13 @@ int gp_canvas_outside_areas(float xres, float yres, GPPolygon* polygons);
 #define GP_PREV_IDX(polygon, idx) idx == 0 ? polygon->size - 1 : idx - 1
 #define GP_NEXT_IDX(polygon, idx) (idx + 1) % polygon->size
 
+#define GP_AREA_LEFT 0
+#define GP_AREA_TOP 1
+#define GP_AREA_BOTTOM 2
+#define GP_AREA_RIGHT 3
+#define GP_AREA_TOP_LEFT 4
+#define GP_AREA_TOP_RIGHT 5
+#define GP_AREA_BOTTOM_RIGHT 6
+#define GP_AREA_BOTTOM_LEFT 7
+
 #endif

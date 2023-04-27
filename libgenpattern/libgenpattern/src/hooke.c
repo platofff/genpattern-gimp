@@ -5,7 +5,7 @@
 #include "misc.h"
 
 static inline float _gp_f(GPSParams* sp, float x, float y) {
-  gp_polygon_translate(sp->polygon, sp->ref, x, y);
+  gp_polygon_translate(&sp->polygon_buffers[0], sp->ref, x, y);
   float res = gp_suitability(*sp);
   return res;
 }

@@ -1,9 +1,9 @@
 #include <math.h>
 
-#include "convex_intersection_area.h"
-#include "suitability.h"
 #include "convex_distance.h"
+#include "convex_intersection_area.h"
 #include "misc.h"
+#include "suitability.h"
 
 static inline float _gp_borders_suitability(GPPolygon* polygon, GPPolygon* canvas, bool* intersected) {
   float dist = -gp_boxes_inner_distance(canvas->bounds, polygon->bounds);
@@ -17,12 +17,12 @@ static inline float _gp_borders_suitability(GPPolygon* polygon, GPPolygon* canva
 
 float gp_suitability(GPSParams p) {
   bool intersected = false;
-  float res = _gp_borders_suitability(p.polygon, p.canvas, &intersected);
+  float res = _gp_borders_suitability(&p.polygon_buffers[0], p.canvas, &intersected);
 
   for (int32_t i = 0; i < p.polygons_len; i++) {
     bool _intersected;
     float intersection_area;
-    gp_convex_intersection_area(p.polygon, &p.polygons[i], &_intersected, &intersection_area, NULL);
+    gp_convex_intersection_area(&p.polygon_buffers[0], &p.polygons[i], &_intersected, &intersection_area, NULL);
     if (_intersected) {
       if (!intersected) {
         intersected = true;
@@ -38,7 +38,7 @@ float gp_suitability(GPSParams p) {
 
   res = MAX(res, -p.target);
   for (int32_t i = 0; i < p.collection_len; i++) {
-    float dist = -gp_convex_distance(p.polygon, &p.collection[i]);
+    float dist = -gp_convex_distance(&p.polygon_buffers[0], &p.collection[i]);
     res = MAX(res, dist);
   }
 

@@ -69,21 +69,27 @@ void* _gp_convex_polygon_thrd(void* _data) {
   }
 }
 
-
 void* _gp_generate_pattern_thrd(void* _data) {
   GPThreadData* data = (GPThreadData*)_data;
   GPParams* params = data->params;
 
-  GPPolygon* polygon_buffer = &params->gp.polygon_buffers[data->thread_id * 4];
+  GPPolygon* polygon_buffers = &params->gp.polygon_buffers[data->thread_id * 4];
   GPPolygon* ref = &params->gp.polygons[params->gp.current];
-  gp_polygon_copy(polygon_buffer, ref);
+  gp_polygon_copy(&polygon_buffers[0], ref);
   int32_t node_id = data->thread_id;
   GPVector node = params->gp.grid[node_id];
 
   while (1) {
-    gp_polygon_translate(polygon_buffer, ref, node.x, node.y);
-    GPSParams sp = {polygon_buffer,        params->gp.target,         params->gp.polygons,        params->gp.current,
-                    params->gp.collection, params->gp.collection_len, &params->gp.canvas_polygon, ref};
+    gp_polygon_translate(&polygon_buffers[0], ref, node.x, node.y);
+    GPSParams sp = {polygon_buffers,
+                    params->gp.target,
+                    params->gp.polygons,
+                    params->gp.current,
+                    params->gp.collection,
+                    params->gp.collection_len,
+                    &params->gp.canvas_polygon,
+                    &params->gp.canvas_outside_areas,
+                    ref};
 
     GPPoint p;
     float res = gp_maximize_suitability(node, 50, -params->gp.target, &sp, &p);
@@ -221,7 +227,7 @@ LIBGENPATTERN_API int gp_genpattern(GPImgAlpha* alphas,
   }
   GPVector* shuffle_buf = malloc(grid_len * sizeof(GPVector));
   gp_array_shuffle(work.gp.grid, shuffle_buf, sizeof(GPVector), grid_len);
-  
+
   work.gp.collection = work.gp.polygons;
   int32_t collection_id = 0;
   work.gp.collection_len = 0;
@@ -294,9 +300,9 @@ LIBGENPATTERN_API int gp_init(void) {
 
 /*
 #define WORK_SIZE 8
-#include "doubly_linked_list.h"
-#include "convex_intersection_area.h"
 #include "convex_area.h"
+#include "convex_intersection_area.h"
+#include "doubly_linked_list.h"
 
 int main() {
   gp_init();
