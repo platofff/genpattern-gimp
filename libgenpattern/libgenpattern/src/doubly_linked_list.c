@@ -55,7 +55,7 @@ GPDLElement *gp_dllist_pop(GPDList *list, GPDLElement *el) {
 }
 
 int gp_dllist_to_polygon(GPDList* list, GPPolygon* res) {
-  res->size = list->size;
+  res->size = list->size - 1; // remove the last point as it's equal to the first one
 
   res->x_ptr = aligned_alloc(32, sizeof(float) * res->size);
   GP_CHECK_ALLOC(res->x_ptr);

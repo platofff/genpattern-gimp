@@ -61,12 +61,10 @@ float gp_maximize_suitability(GPPoint b1, float step, float target, GPSParams* s
     GPPoint b2 = _gp_first_phase((float[2]){b1.x, b1.y}, steps, &stop, sp, &res2); 
     
     *res = b2;
-    _gp_f(sp, b2.x, b2.y);  // TODO
     return res2;
 
     if (stop || res2 <= target) {
       *res = b2;
-      _gp_f(sp, b2.x, b2.y);  // TODO
       return res2;
     }
 
@@ -81,7 +79,6 @@ float gp_maximize_suitability(GPPoint b1, float step, float target, GPSParams* s
       if (res2 > res4) {
         if (res4 <= target) {
           *res = b4;
-          _gp_f(sp, b4.x, b4.y); // TODO
           return res4;
         }
         b1 = b2;

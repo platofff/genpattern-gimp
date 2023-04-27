@@ -83,7 +83,7 @@ void* _gp_generate_pattern_thrd(void* _data) {
         *params->gp.next_work = 0;
       }
       if (res <= -params->gp.target) {
-        gp_polygon_copy_all(ref, polygon_buffer);
+        gp_polygon_translate(ref, ref, p.x, p.y);
         *params->gp.next_work = 0;
         pthread_mutex_unlock(&params->gp.next_work_mtx);
         return NULL;

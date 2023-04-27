@@ -11,7 +11,7 @@ static inline float _gp_borders_suitability(GPPolygon* polygon, GPPolygon* canva
     return dist;
   }
   return polygon->area -
-         gp_convex_intersection_area(canvas, polygon, intersected);  // TODO: do it without boxes intersection check
+         gp_convex_intersection_area(canvas, polygon, intersected);
 }
 
 float gp_suitability(GPSParams p) {
