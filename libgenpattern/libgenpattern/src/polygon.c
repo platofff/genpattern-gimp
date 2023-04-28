@@ -94,15 +94,11 @@ int gp_polygon_init_empty(GPPolygon* res, int32_t max_size) {
 
 // polygons buffer size must be at least 8
 int gp_canvas_outside_areas(float xres, float yres, GPPolygon* polygons) {
-  GPBox boxes[8] = {{.xmin = -INFINITY, .ymin = 0.f, .xmax = 0.f, .ymax = yres},
-                    {.xmin = -INFINITY, .ymin = -INFINITY, .xmax = xres, .ymax = 0.f},
-                    {.xmin = 0.f, .ymin = yres, .xmax = xres, .ymax = INFINITY},
-                    {.xmin = xres, .ymin = 0.f, .xmax = INFINITY, .ymax = yres},
-                    // Corner boxes
-                    {.xmin = -INFINITY, .ymin = -INFINITY, .xmax = 0.f, .ymax = 0.f},
-                    {.xmin = xres, .ymin = -INFINITY, .xmax = INFINITY, .ymax = 0.f},
-                    {.xmin = xres, .ymin = yres, .xmax = INFINITY, .ymax = INFINITY},
-                    {.xmin = -INFINITY, .ymin = yres, .xmax = 0.f, .ymax = INFINITY}};
+  float mval = MAX(xres, yres);
+  GPBox boxes[8] = {{-mval, 0.f, 0.f, yres},         {0.f, yres, xres, yres + mval},
+                    {0.f, -mval, xres, 0.f},         {xres, 0.f, mval + xres, yres},
+                    {-mval, yres, 0.f, yres + mval}, {xres, yres, xres + mval, yres + mval},
+                    {xres, -mval, xres + mval, 0.f}, {-mval, -mval, 0.f, 0.f}};
 
   for (int32_t i = 0; i < 8; i++) {
     int res = gp_box_to_polygon(&boxes[i], &polygons[i]);

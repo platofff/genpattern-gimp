@@ -73,7 +73,7 @@ void* _gp_generate_pattern_thrd(void* _data) {
   GPThreadData* data = (GPThreadData*)_data;
   GPParams* params = data->params;
 
-  GPPolygon* polygon_buffers = &params->gp.polygon_buffers[data->thread_id * 4];
+  GPPolygon* polygon_buffers = &params->gp.polygon_buffers[data->thread_id * 5];
   GPPolygon* ref = &params->gp.polygons[params->gp.current];
   gp_polygon_copy(&polygon_buffers[0], ref);
   int32_t node_id = data->thread_id;
@@ -130,8 +130,7 @@ LIBGENPATTERN_API int gp_genpattern(GPImgAlpha* alphas,
                                     size_t threads_num) {
   int exitcode = 0;
 
-  GPParams work;
-  work.cp.polygons = NULL;
+  GPParams work = {0};
   work.cp.work_size = out_len;
 
   work.cp.alphas = alphas;
@@ -165,7 +164,6 @@ LIBGENPATTERN_API int gp_genpattern(GPImgAlpha* alphas,
   threads = malloc(threads_num * sizeof(pthread_t));
   GP_CHECK_ALLOC(threads);
 
-  work.cp.next_work_mtx = NULL;
   if (pthread_mutex_init(&work.cp.next_work_mtx, NULL) != 0) {
     return GP_ERR_THREADING;
   }
@@ -196,12 +194,13 @@ LIBGENPATTERN_API int gp_genpattern(GPImgAlpha* alphas,
 
   work.gp.target = min_dist;
   /*
-  Allocating 4 polygon buffers per thread. Out of these four polygon buffers, one is used
-  for the main part of the polygon, while the other three are used for its parts that may
-  cross over to the other sides of the canvas. This ensures that the algorithm can
-  properly handle polygons that wrap around the canvas edges.
+  Allocating 5 polygon buffers per thread, the first one serves as a read-only source
+  polygon. Out of the remaining four polygon buffers, one is utilized for the primary
+  section of the polygon, while the other three cater to its segments that may cross
+  over to the opposite sides of the canvas. This guarantees that the algorithm can
+  appropriately manage polygons that wrap around the canvas edges.
   */
-  work.gp.polygon_buffers = malloc(threads_num * 4 * sizeof(GPPolygon));
+  work.gp.polygon_buffers = malloc(threads_num * 5 * sizeof(GPPolygon));
   GP_CHECK_ALLOC(work.gp.polygon_buffers);
 
   /*
@@ -213,7 +212,7 @@ LIBGENPATTERN_API int gp_genpattern(GPImgAlpha* alphas,
   intersect a maximum of 3 of its edges.
   */
   max_size += 3;
-  for (int32_t i = 0; i < threads_num * 4; i++) {
+  for (int32_t i = 0; i < threads_num * 5; i++) {
     exitcode = gp_polygon_init_empty(&work.gp.polygon_buffers[i], max_size);
     if (exitcode != 0) {
       return exitcode;
