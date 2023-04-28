@@ -88,7 +88,7 @@ void* _gp_generate_pattern_thrd(void* _data) {
                     params->gp.collection,
                     params->gp.collection_len,
                     &params->gp.canvas_polygon,
-                    &params->gp.canvas_outside_areas,
+                    params->gp.canvas_outside_areas,
                     ref};
 
     GPPoint p;
@@ -213,11 +213,11 @@ LIBGENPATTERN_API int gp_genpattern(GPImgAlpha* alphas,
   intersect a maximum of 3 of its edges.
   */
   max_size += 3;
-  for (int32_t i = 0; i < threads_num; i++) {
-    work.gp.polygon_buffers[i].x_ptr = aligned_alloc(32, sizeof(float) * max_size);
-    GP_CHECK_ALLOC(work.gp.polygon_buffers[i].x_ptr);
-    work.gp.polygon_buffers[i].y_ptr = aligned_alloc(32, sizeof(float) * max_size);
-    GP_CHECK_ALLOC(work.gp.polygon_buffers[i].y_ptr);
+  for (int32_t i = 0; i < threads_num * 4; i++) {
+    exitcode = gp_polygon_init_empty(&work.gp.polygon_buffers[i], max_size);
+    if (exitcode != 0) {
+      return exitcode;
+    }
   }
 
   size_t grid_len;
@@ -234,11 +234,11 @@ LIBGENPATTERN_API int gp_genpattern(GPImgAlpha* alphas,
   int32_t start_work = MIN(threads_num, grid_len);
 
   GPPolygon canvas_outside_areas[8];
-  exitcode = gp_canvas_outside_areas(canvas_width, canvas_height, canvas_outside_areas);
+  exitcode = gp_canvas_outside_areas(canvas_width, canvas_height, &canvas_outside_areas[0]);
   if (exitcode != 0) {
     return exitcode;
   }
-  work.gp.canvas_outside_areas = canvas_outside_areas;
+  work.gp.canvas_outside_areas = &canvas_outside_areas[0];
 
   for (work.gp.current = 0; work.gp.current < out_len; work.gp.current++) {
     work.gp.work_size = grid_len;
