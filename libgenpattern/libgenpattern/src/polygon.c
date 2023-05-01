@@ -65,17 +65,34 @@ void gp_polygon_copy_all(GPPolygon* dst, const GPPolygon* src) {
   memcpy(dst->y_ptr, src->y_ptr, src->size * sizeof(float));
 }
 
+static inline bool _gp_are_collinear(const GPPoint a, const GPPoint b, const GPPoint c) {
+  return fabsf((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)) < EPSILON;
+}
+
 // Doesn't compute area
 // Doesn't check array bounds
-void gp_polygon_add_point(GPPolygon* polygon, GPPoint point) {
+void gp_polygon_add_point(GPPolygon* polygon, const GPPoint point) {
   polygon->bounds.xmin = MIN(polygon->bounds.xmin, point.x);
   polygon->bounds.ymin = MIN(polygon->bounds.ymin, point.y);
   polygon->bounds.xmax = MAX(polygon->bounds.xmax, point.x);
   polygon->bounds.ymax = MAX(polygon->bounds.ymax, point.y);
+
+  if (polygon->size >= 2) {
+    GPPoint prev = GP_POLYGON_POINT(polygon, polygon->size - 1);
+    GPPoint prev_prev = GP_POLYGON_POINT(polygon, polygon->size - 2);
+
+    if (_gp_are_collinear(prev_prev, prev, point)) {
+      polygon->x_ptr[polygon->size - 1] = point.x;
+      polygon->y_ptr[polygon->size - 1] = point.y;
+      return;
+    }
+  }
+
   polygon->x_ptr[polygon->size] = point.x;
   polygon->y_ptr[polygon->size] = point.y;
   polygon->size++;
 }
+
 
 int gp_polygon_init_empty(GPPolygon* res, int32_t max_size) {
   res->size = 0;

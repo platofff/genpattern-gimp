@@ -22,7 +22,6 @@ Implementation by Arkadii Chekha, 2022
 #include <stdbool.h>
 #include <stdio.h>
 
-
 static inline float _gp_area_sign(const GPPoint p1, const GPPoint p2, const GPPoint p3) {
   float res = (p2.x - p1.x) * (p3.y - p2.y) - (p3.x - p2.x) * (p2.y - p1.y);
   return res;
@@ -61,35 +60,10 @@ static inline double _gp_vector_angle_basic(double ax, double ay, double bx, dou
 
 // An unimodal function optimization using Fibonacci search
 // https://web.archive.org/web/20191201003031/http://mathfaculty.fullerton.edu/mathews/n2003/FibonacciSearchMod.html
-static inline void _gp_search_tangent(const GPPolygon* polygon, const GPPoint point, const bool target, int32_t* res) {
-  /*
-  float prev_hp, next_hp;
-  GPPoint prev_p, next_p, p;
-
-  while (1) {
-    for (int32_t i = 0; i < polygon->size; i++) {
-      //_gp_neighbors_halfplanes(polygon, point, i, &prev_hp, &next_hp);
-      prev_p = GP_POLYGON_POINT(polygon, GP_PREV_IDX(polygon, i)),
-      next_p = GP_POLYGON_POINT(polygon, GP_NEXT_IDX(polygon, i)), p = GP_POLYGON_POINT(polygon, i);
-      prev_hp = _gp_area_sign(prev_p, p, point);
-      next_hp = _gp_area_sign(next_p, p, point);
-
-      if (fpclassify(prev_hp) == FP_ZERO) {
-        prev_hp = next_hp;
-      }
-      if (fpclassify(next_hp) == FP_ZERO) {
-        next_hp = prev_hp;
-      }
-
-      if ((prev_hp >= 0 && next_hp >= 0 && target) || (next_hp < 0 && prev_hp < 0 && !target)) {
-        *res = i;
-        return;
-      }
-    }
-    assert(false);
-    puts("");
-  }*/
-  
+static inline void _gp_search_tangent(const GPPolygon* polygon,
+                                      const GPPoint point,
+                                      const bool target,
+                                      int32_t* res) {
   float a = 0.f;
   float b = polygon->size - 1;
   bool prev, next;
@@ -153,23 +127,6 @@ static inline void _gp_search_tangent(const GPPolygon* polygon, const GPPoint po
   }
 
   *res = a;
-  /*
-  int32_t astart = GP_PREV_IDX(polygon, (int32_t)a);
-  int32_t bend = GP_NEXT_IDX(polygon, (int32_t)b);
-
-  while (1) {
-    for (int32_t i = astart; i != bend; i = GP_NEXT_IDX(polygon, i)) {
-      _gp_neighbors_halfplanes(polygon, point, i, &prev, &next);
-      //if (prev == target && next == target) {
-      if (prev == next) {
-        *res = i;
-        return;
-      }
-    }
-    puts("");
-  }
-  assert(false);
-  */
 }
 
 static inline void _gp_polygon_tangent_points(const GPPolygon* polygon,
@@ -180,14 +137,25 @@ static inline void _gp_polygon_tangent_points(const GPPolygon* polygon,
   _gp_search_tangent(polygon, point, true, t2_idx);
 }
 
+// Modified to properly handle degenerate polygons
 static inline void _gp_initial_phase(const GPPolygon* polygon1,
                                      const GPPolygon* polygon2,
                                      int32_t* p1,
                                      int32_t* p2,
                                      int32_t* q1,
                                      int32_t* q2) {
-  _gp_polygon_tangent_points(polygon1, GP_POLYGON_POINT(polygon2, 0), p1, p2);
-  _gp_polygon_tangent_points(polygon2, GP_POLYGON_POINT(polygon1, 0), q2, q1);
+  if (polygon1->size >= 3) {
+    _gp_polygon_tangent_points(polygon1, GP_POLYGON_POINT(polygon2, 0), p1, p2);
+  } else {
+    *p1 = 0;
+    *p2 = polygon1->size - 1;
+  }
+  if (polygon2->size >= 3) {
+    _gp_polygon_tangent_points(polygon2, GP_POLYGON_POINT(polygon1, 0), q2, q1);
+  } else {
+    *q1 = polygon2->size - 1;
+    *q2 = 0;
+  }
 }
 
 static inline float _gp_point_to_line_segment_param(const GPPoint l1,
@@ -220,14 +188,18 @@ static inline float _gp_point_to_line_segment_param(const GPPoint l1,
     b * b is always >= 0, so to check if fraction value >= 0 we can simply check if a * b >= 0
     To check if fraction value <= 1 we should check if a * b <= b * b
 */
-static inline bool _gp_orthogonal_projection_exists(const GPPoint l1, const GPPoint l2, const GPPoint p) {
+static inline bool _gp_orthogonal_projection_exists(const GPPoint l1,
+                                                    const GPPoint l2,
+                                                    const GPPoint p) {
   const float ax = p.x - l1.x, ay = p.y - l1.y, bx = l2.x - l1.x, by = l2.y - l1.y;
   const float dot = ax * bx + ay * by;
   const float len_sq = bx * bx + by * by;
-  return dot <= len_sq && dot >= 0;
+  return dot <= len_sq && dot >= 0.f;
 }
 
-static inline float _gp_point_to_line_segment_distance(const GPPoint l1, const GPPoint l2, const GPPoint p) {
+static inline float _gp_point_to_line_segment_distance(const GPPoint l1,
+                                                       const GPPoint l2,
+                                                       const GPPoint p) {
   float c, d;
   const float param = _gp_point_to_line_segment_param(l1, l2, p, &c, &d);
 
@@ -266,7 +238,11 @@ static inline int32_t _gp_vertex_count(const int32_t size, const int32_t* i1, co
   return *i2 - *i1;
 }
 
-static inline void _gp_binary_elimination_case1(int32_t* c1, int32_t* c2, int32_t mc, float b_, float b__) {
+static inline void _gp_binary_elimination_case1(int32_t* c1,
+                                                int32_t* c2,
+                                                int32_t mc,
+                                                float b_,
+                                                float b__) {
   if ((M_PI_2F - b_) < EPSILON) {
     *c1 = mc;
   }
@@ -299,7 +275,8 @@ static inline void _gp_binary_elimination_case2(const GPPolygon* polygon1,
       *d2 = md;
     }
     if ((a_ - b__) < EPSILON && b__ < M_PI_2F) {  // (3)
-      if (_gp_orthogonal_projection_exists(GP_POLYGON_POINT(polygon1, *c1), GP_POLYGON_POINT(polygon1, *c2),
+      if (_gp_orthogonal_projection_exists(GP_POLYGON_POINT(polygon1, *c1),
+                                           GP_POLYGON_POINT(polygon1, *c2),
                                            GP_POLYGON_POINT(polygon2, md))) {
         *d2 = md;
       } else {
@@ -381,7 +358,8 @@ static inline void _gp_binary_elimination(const GPPolygon* polygon1,
     vc_p = _gp_vertex_count(polygon1->size, p1, p2);
     vc_q = _gp_vertex_count(polygon2->size, q2, q1);
 
-    int32_t mp = _gp_median_idx(polygon1->size, p1, p2), mq = _gp_median_idx(polygon2->size, q2, q1);
+    int32_t mp = _gp_median_idx(polygon1->size, p1, p2),
+            mq = _gp_median_idx(polygon2->size, q2, q1);
 
     if (vc_p == 1) {
       mp = *p2;
@@ -421,11 +399,13 @@ static inline void _gp_binary_elimination(const GPPolygon* polygon1,
 
     // Case 2
     if (vc_p == 1) {
-      _gp_binary_elimination_case2(polygon1, polygon2, p1, p2, mp, q1, q2, mq, alpha_, beta_, beta__);
+      _gp_binary_elimination_case2(polygon1, polygon2, p1, p2, mp, q1, q2, mq, alpha_, beta_,
+                                   beta__);
       continue;
     }
     if (vc_q == 1) {
-      _gp_binary_elimination_case2(polygon2, polygon1, q2, q1, mq, p2, p1, mp, beta__, alpha__, alpha_);
+      _gp_binary_elimination_case2(polygon2, polygon1, q2, q1, mq, p2, p1, mp, beta__, alpha__,
+                                   alpha_);
       continue;
     }
 
@@ -468,6 +448,6 @@ float gp_convex_distance(GPPolygon* polygon1, GPPolygon* polygon2) {
 
   _gp_binary_elimination(polygon1, polygon2, &p1, &p2, &q1, &q2);
 
-  return _gp_final_phase(GP_POLYGON_POINT(polygon1, p1), GP_POLYGON_POINT(polygon1, p2), GP_POLYGON_POINT(polygon2, q1),
-                         GP_POLYGON_POINT(polygon2, q2));
+  return _gp_final_phase(GP_POLYGON_POINT(polygon1, p1), GP_POLYGON_POINT(polygon1, p2),
+                         GP_POLYGON_POINT(polygon2, q1), GP_POLYGON_POINT(polygon2, q2));
 }

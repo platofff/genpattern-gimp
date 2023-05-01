@@ -18,7 +18,7 @@ void gp_polygon_free(GPPolygon* p);
 void gp_polygon_copy(GPPolygon* dst, const GPPolygon* src);
 void gp_polygon_copy_all(GPPolygon* dst, const GPPolygon* src);
 int gp_box_to_polygon(GPBox* box, GPPolygon* polygon);
-void gp_polygon_add_point(GPPolygon* polygon, GPPoint point);
+void gp_polygon_add_point(GPPolygon* polygon, const GPPoint point);
 int gp_polygon_init_empty(GPPolygon* res, int32_t max_size);
 int gp_canvas_outside_areas(float xres, float yres, GPPolygon* polygons);
 

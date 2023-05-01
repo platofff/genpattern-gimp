@@ -7,6 +7,7 @@
 #include "misc.h"
 #include "polygon_translate.h"
 
+#include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
 #ifdef _MSC_VER
@@ -40,7 +41,7 @@ void* _gp_convex_polygon_thrd(void* _data) {
     int res = gp_image_convex_hull(polygon, alpha, params->cp.t);
 
     if (res != 0) {
-      pthread_exit(&res);
+      pthread_exit(NULL);
     }
 
     // Lock the mutex to safely update the shared data structures.
@@ -69,19 +70,36 @@ void* _gp_convex_polygon_thrd(void* _data) {
   }
 }
 
+static inline int _gp_polygons_buffer_alloc(const size_t buf_size,
+                                            const size_t max_points,
+                                            GPPolygon** res) {
+  *res = malloc(sizeof(GPPolygon) * buf_size);
+  GP_CHECK_ALLOC(res);
+  for (int32_t i = 0; i < buf_size; i++) {
+    gp_polygon_init_empty(&(*res)[i], max_points);
+  }
+  return 0;
+}
+
 void* _gp_generate_pattern_thrd(void* _data) {
   GPThreadData* data = (GPThreadData*)_data;
   GPParams* params = data->params;
 
-  GPPolygon* polygon_buffers = &params->gp.polygon_buffers[data->thread_id * 5];
   GPPolygon* ref = &params->gp.polygons[params->gp.current];
-  gp_polygon_copy(&polygon_buffers[0], ref);
+  GPPolygon* polygons_buffer = &params->gp.polygon_buffers[5 * data->thread_id];
+
+  for (int32_t i = 0; i < GP_HOOKE_CACHE_SIZE * 5; i++) {
+    gp_polygon_copy(&polygons_buffer[i], ref);
+  }
+
   int32_t node_id = data->thread_id;
   GPVector node = params->gp.grid[node_id];
 
   while (1) {
-    gp_polygon_translate(&polygon_buffers[0], ref, node.x, node.y);
-    GPSParams sp = {polygon_buffers,
+    for (int32_t i = 0; i < GP_HOOKE_CACHE_SIZE; i++) {
+      gp_polygon_translate(&polygons_buffer[i * 5], ref, node.x, node.y);
+    }
+    GPSParams sp = {polygons_buffer,
                     params->gp.target,
                     params->gp.polygons,
                     params->gp.current,
@@ -91,8 +109,25 @@ void* _gp_generate_pattern_thrd(void* _data) {
                     params->gp.canvas_outside_areas,
                     ref};
 
-    GPPoint p;
-    float res = gp_maximize_suitability(node, 50, -params->gp.target, &sp, &p);
+    GPPoint out_points[4] = {0};
+    GPPolygon* out_polygons = NULL;
+    int32_t out_len = 0;
+    float res = gp_maximize_suitability(node, params->gp.initial_step, -params->gp.target, &sp,
+                                        &out_points[0], &out_len, &out_polygons);
+
+    // TEST
+    /*
+    float res = -10.f;
+    out_polygons = polygons_buffer + 1;
+    gp_polygon_copy_all(&out_polygons[0], ref);
+    gp_polygon_translate(&out_polygons[0], ref, 17, 56);
+    gp_polygon_copy_all(&out_polygons[1], ref);
+    gp_polygon_copy_all(&out_polygons[2], ref);
+    gp_polygon_copy_all(&out_polygons[3], ref);
+    out_len = 4;*/
+    // /TEST
+
+    assert(out_len <= 4);
 
     pthread_mutex_lock(&params->cp.next_work_mtx);
     if (*params->gp.next_work != 0) {
@@ -103,7 +138,13 @@ void* _gp_generate_pattern_thrd(void* _data) {
         *params->gp.next_work = 0;
       }
       if (res <= -params->gp.target) {
-        gp_polygon_translate(ref, ref, p.x, p.y);
+        for (int32_t i = 0; i < out_len; i++) {
+          size_t idx = *params->gp.out_polygons_len;
+          gp_polygon_copy_all(&params->gp.out_polygons[idx], &out_polygons[i]);
+          *(params->gp.out_polygons_len) += 1;
+        }
+        params->gp.collection_len += out_len;
+
         *params->gp.next_work = 0;
         pthread_mutex_unlock(&params->gp.next_work_mtx);
         return NULL;
@@ -125,18 +166,29 @@ LIBGENPATTERN_API int gp_genpattern(GPImgAlpha* alphas,
                                     uint8_t t,
                                     int32_t min_dist,
                                     int32_t grid_resolution,
-                                    int32_t out_len,
-                                    GPVector* out,
-                                    size_t threads_num) {
+                                    uint32_t initial_step,
+                                    size_t threads_num,
+                                    GPResult** out,
+                                    size_t* out_len) {
   int exitcode = 0;
-
   GPParams work = {0};
-  work.cp.work_size = out_len;
+  *out_len = 0;
+  int32_t pics_len = 0;
 
-  work.cp.alphas = alphas;
-  work.cp.t = t;
   pthread_t* threads = NULL;
   GPThreadData* threads_data = NULL;
+  *out = NULL;
+
+  for (int32_t i = 0; i < collections_len; i++) {
+    pics_len += collections_sizes[i];
+  }
+
+  *out = malloc(pics_len * 4 * sizeof(GPResult));
+  GP_CHECK_ALLOC(*out);
+
+  work.cp.work_size = pics_len;
+  work.cp.alphas = alphas;
+  work.cp.t = t;
 
   GPBox canvas_box = {.xmin = 0.f, .ymin = 0.f, .xmax = canvas_width, .ymax = canvas_height};
   exitcode = gp_box_to_polygon(&canvas_box, &work.cp.canvas_polygon);
@@ -144,7 +196,7 @@ LIBGENPATTERN_API int gp_genpattern(GPImgAlpha* alphas,
     return exitcode;
   }
 
-  work.cp.polygons = malloc(out_len * sizeof(GPPolygon));
+  work.cp.polygons = malloc(pics_len * sizeof(GPPolygon));
   GP_CHECK_ALLOC(work.cp.polygons);
 
   if (threads_num == 0) {
@@ -154,8 +206,8 @@ LIBGENPATTERN_API int gp_genpattern(GPImgAlpha* alphas,
     }
   }
 
-  size_t cp_threads_size = MIN(threads_num, out_len);
-  size_t next_work = out_len > cp_threads_size ? cp_threads_size : 0;
+  size_t cp_threads_size = MIN(threads_num, pics_len);
+  size_t next_work = pics_len > cp_threads_size ? cp_threads_size : 0;
   work.cp.next_work = &next_work;
 
   int32_t max_size = 0;
@@ -171,7 +223,8 @@ LIBGENPATTERN_API int gp_genpattern(GPImgAlpha* alphas,
   threads_data = malloc(threads_num * sizeof(GPThreadData));
   GP_CHECK_ALLOC(threads_data);
 
-  // Each thread processes a single image at a time, and when done, it picks up the next image to process.
+  // Each thread processes a single image at a time, and when done, it picks up the next image to
+  // process.
   for (size_t i = 0; i < threads_num; i++) {
     threads_data[i].params = &work;
     threads_data[i].thread_id = i;
@@ -193,15 +246,8 @@ LIBGENPATTERN_API int gp_genpattern(GPImgAlpha* alphas,
   // Generate pattern
 
   work.gp.target = min_dist;
-  /*
-  Allocating 5 polygon buffers per thread, the first one serves as a read-only source
-  polygon. Out of the remaining four polygon buffers, one is utilized for the primary
-  section of the polygon, while the other three cater to its segments that may cross
-  over to the opposite sides of the canvas. This guarantees that the algorithm can
-  appropriately manage polygons that wrap around the canvas edges.
-  */
-  work.gp.polygon_buffers = malloc(threads_num * 5 * sizeof(GPPolygon));
-  GP_CHECK_ALLOC(work.gp.polygon_buffers);
+  work.gp.out_polygons_len = out_len;
+  work.gp.initial_step = initial_step;
 
   /*
   In order to use these polygon buffers, we need to take into account the polygons
@@ -212,40 +258,60 @@ LIBGENPATTERN_API int gp_genpattern(GPImgAlpha* alphas,
   intersect a maximum of 3 of its edges.
   */
   max_size += 3;
-  for (int32_t i = 0; i < threads_num * 5; i++) {
-    exitcode = gp_polygon_init_empty(&work.gp.polygon_buffers[i], max_size);
-    if (exitcode != 0) {
-      return exitcode;
-    }
+  /*
+  Allocating 5 polygon buffers per thread, the first one serves as a read-only source
+  polygon. Out of the remaining four polygon buffers, one is utilized for the primary
+  section of the polygon, while the other three cater to its segments that may cross
+  over to the opposite sides of the canvas. This guarantees that the algorithm can
+  appropriately manage polygons that wrap around the canvas edges.
+  */
+  exitcode = _gp_polygons_buffer_alloc((size_t)5 * GP_HOOKE_CACHE_SIZE * threads_num,
+                                       *work.gp.max_size, &work.gp.polygon_buffers);
+  if (exitcode != 0) {
+    return exitcode;
+  }
+
+  // out_polygons buffer to store already placed parts
+  exitcode =
+      _gp_polygons_buffer_alloc((size_t)4 * pics_len, *work.gp.max_size, &work.gp.out_polygons);
+
+  if (exitcode != 0) {
+    return exitcode;
   }
 
   size_t grid_len;
+
   exitcode = gp_grid_init(canvas_width, canvas_height, grid_resolution, &work.gp.grid, &grid_len);
   if (exitcode != 0) {
     return exitcode;
   }
-  GPVector* shuffle_buf = malloc(grid_len * sizeof(GPVector));
-  gp_array_shuffle(work.gp.grid, shuffle_buf, sizeof(GPVector), grid_len);
 
-  work.gp.collection = work.gp.polygons;
-  int32_t collection_id = 0;
+  GPVector shuffle_buf;
+  gp_array_shuffle(work.gp.grid, &shuffle_buf, sizeof(GPVector), grid_len);
+
+  work.gp.collection = work.gp.out_polygons;
+  int32_t collection_id = 0,
+          polygon_id = 0;  // last processed polygon
   work.gp.collection_len = 0;
   int32_t start_work = MIN(threads_num, grid_len);
 
-  GPPolygon canvas_outside_areas[8];
+  GPPolygon canvas_outside_areas[8] = {0};
   exitcode = gp_canvas_outside_areas(canvas_width, canvas_height, &canvas_outside_areas[0]);
   if (exitcode != 0) {
     return exitcode;
   }
   work.gp.canvas_outside_areas = &canvas_outside_areas[0];
 
-  for (work.gp.current = 0; work.gp.current < out_len; work.gp.current++) {
+  int32_t current_collection_len = 0;  // collection len in polygons, not parts
+
+  for (work.gp.current = 0; work.gp.current < pics_len; work.gp.current++) {
     work.gp.work_size = grid_len;
     next_work = start_work;
-    gp_array_shuffle(work.gp.grid, shuffle_buf, sizeof(GPVector), grid_len);
+    gp_array_shuffle(work.gp.grid, &shuffle_buf, sizeof(GPVector), grid_len);
 
     for (size_t i = 0; i < start_work; i++) {
-      int rc = pthread_create(&threads[i], NULL, _gp_generate_pattern_thrd, (void*)(threads_data + i));
+      int rc =
+          pthread_create(&threads[i], NULL, _gp_generate_pattern_thrd, (void*)(threads_data + i));
       if (rc != 0) {
         return GP_ERR_THREADING;
       }
@@ -256,27 +322,26 @@ LIBGENPATTERN_API int gp_genpattern(GPImgAlpha* alphas,
       }
     }
 
-    work.gp.collection_len++;
-    if (work.gp.collection_len == collections_sizes[collection_id]) {
+    for (; polygon_id < *out_len; polygon_id++) {
+      (*out)[polygon_id].collection_idx = collection_id;
+      (*out)[polygon_id].idx = current_collection_len;
+      (*out)[polygon_id].offset.x = work.gp.out_polygons[polygon_id].base_offset.x;
+      (*out)[polygon_id].offset.y = work.gp.out_polygons[polygon_id].base_offset.y;
+    }
+
+    current_collection_len++;
+    if (current_collection_len == collections_sizes[collection_id]) {
       work.gp.collection += work.gp.collection_len;
       collection_id++;
       work.gp.collection_len = 0;
+      current_collection_len = 0;
     }
   }
 
-  for (int32_t i = 0; i < out_len; i++) {
-    GPPolygon polygon = work.gp.polygons[i];
-    out[i].x = polygon.base_offset.x;
-    out[i].y = polygon.base_offset.y;
-  }
-
-  gp_debug_polygons(work.gp.polygons, out_len);
-
-  free(shuffle_buf);
-  for (int32_t i = 0; i < out_len; i++) {
+  for (int32_t i = 0; i < pics_len; i++) {
     gp_polygon_free(&work.gp.polygons[i]);
   }
-  for (int32_t i = 0; i < threads_num; i++) {
+  for (size_t i = 0; i < (size_t)5 * GP_HOOKE_CACHE_SIZE * threads_num; i++) {
     gp_polygon_free(&work.gp.polygon_buffers[i]);
   }
   for (int32_t i = 0; i < 8; i++) {
@@ -297,59 +362,95 @@ LIBGENPATTERN_API int gp_init(void) {
   return 0;
 }
 
-/*
-#define WORK_SIZE 8
-#include "convex_area.h"
-#include "convex_intersection_area.h"
-#include "doubly_linked_list.h"
+#define COL1 10
+#define COL2 10
+
+const uint8_t image1[] = {
+    0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00,
+    0x00, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00,
+    0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00,
+    0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00,
+    0x00, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00,
+    0x00, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0x00,
+};
+
+const uint8_t image2[] = {
+    0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF,
+    0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00,
+    0x00, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0xFF,
+    0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0x00,
+    0x00, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0xFF,
+    0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF,
+    0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00,
+    0x00, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0xFF,
+    0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0x00,
+    0x00, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0xFF,
+};
 
 int main() {
   gp_init();
 
-  GPVector* offsets = malloc(sizeof(GPVector) * WORK_SIZE);
-  GP_CHECK_ALLOC(offsets);
-  int32_t collections_len = 1;
-  int32_t collections_sizes[1] = {WORK_SIZE};
-  int32_t canvas_width = 3000;
-  int32_t canvas_height = 3000;
-  uint8_t t = 32;
-  int32_t resolution = 50;
-  int32_t out_len = WORK_SIZE;
-  int32_t min_dist = 150;
+  GPResult* result = NULL;
+  size_t result_len = 0;
 
-  GPImgAlpha* alphas = malloc(sizeof(GPImgAlpha) * WORK_SIZE);
+  int32_t collections_len = 2;
+  int32_t collections_sizes[2] = {COL1, COL2};
+  int32_t canvas_width = 100;
+  int32_t canvas_height = 100;
+  uint8_t t = 32;
+  int32_t resolution = 10;
+  int32_t min_dist = 10;
+  uint32_t initial_step = 50;
+
+  GPImgAlpha* alphas = malloc(sizeof(GPImgAlpha) * (COL1 + COL2));
   GP_CHECK_ALLOC(alphas);
-  for (int32_t i = 0; i < WORK_SIZE; i++) {
-    memcpy(&alphas[i], &test_image, sizeof(test_image));
+  for (int32_t i = 0; i < COL1; i++) {
+    alphas[i].data = image1;
+    alphas[i].height = 16;
+    alphas[i].width = 8;
+  }
+  for (int32_t i = COL1; i < COL1 + COL2; i++) {
+    alphas[i].data = image2;
+    alphas[i].height = 16;
+    alphas[i].width = 8;
   }
 
-  gp_genpattern(alphas, &collections_sizes[0], collections_len, canvas_width, canvas_height, t, min_dist, resolution,
-                out_len, offsets, 0);
+  gp_genpattern(alphas, collections_sizes, collections_len, canvas_width, canvas_height, t,
+                min_dist, resolution, initial_step, 1, &result, &result_len);
 
   free(alphas);
-  free(offsets);
 
+  for (int32_t i = 0; i < result_len; i++) {
+    printf("Collection: %u\nIndex: %u\nOffset: (%f, %f)\n\n", result[i].collection_idx,
+           result[i].idx, result[i].offset.x, result[i].offset.y);
+  }
 
+  /*
 
   GPDList *list1, *list2;
   gp_dllist_alloc(&list1);
   gp_dllist_alloc(&list2);
 
   GPPoint points[] = {
-      {60.000000, 1047.000000},  {60.000000, 1019.000000},  {61.000000, 1016.000000},  {63.000000, 1012.000000},
-      {68.000000, 1007.000000},  {71.000000, 1005.000000},  {79.000000, 1001.000000},  {130.000000, 977.000000},
-      {207.000000, 941.000000},  {237.000000, 927.000000},  {250.000000, 921.000000},  {253.000000, 920.000000},
-      {263.000000, 917.000000},  {271.000000, 917.000000},  {275.000000, 918.000000},  {277.000000, 919.000000},
-      {283.000000, 925.000000},  {285.000000, 928.000000},  {293.000000, 943.000000},  {294.000000, 945.000000},
-      {296.000000, 951.000000},  {296.000000, 962.000000},  {282.000000, 1032.000000}, {263.000000, 1126.000000},
-      {262.000000, 1129.000000}, {261.000000, 1131.000000}, {258.000000, 1135.000000}, {256.000000, 1137.000000},
-      {253.000000, 1139.000000}, {251.000000, 1140.000000}, {248.000000, 1141.000000}, {235.000000, 1141.000000},
-      {227.000000, 1139.000000}, {216.000000, 1134.000000}, {204.000000, 1128.000000}, {73.000000, 1062.000000},
-      {68.000000, 1059.000000},  {63.000000, 1054.000000},  {61.000000, 1050.000000}
+      {60.000000, 1047.000000},  {60.000000, 1019.000000},  {61.000000, 1016.000000},  {63.000000,
+1012.000000}, {68.000000, 1007.000000},  {71.000000, 1005.000000},  {79.000000, 1001.000000},
+{130.000000, 977.000000}, {207.000000, 941.000000},  {237.000000, 927.000000},  {250.000000,
+921.000000},  {253.000000, 920.000000}, {263.000000, 917.000000},  {271.000000, 917.000000},
+{275.000000, 918.000000},  {277.000000, 919.000000}, {283.000000, 925.000000},  {285.000000,
+928.000000},  {293.000000, 943.000000},  {294.000000, 945.000000}, {296.000000, 951.000000},
+{296.000000, 962.000000},  {282.000000, 1032.000000}, {263.000000, 1126.000000}, {262.000000,
+1129.000000}, {261.000000, 1131.000000}, {258.000000, 1135.000000}, {256.000000, 1137.000000},
+      {253.000000, 1139.000000}, {251.000000, 1140.000000}, {248.000000, 1141.000000}, {235.000000,
+1141.000000}, {227.000000, 1139.000000}, {216.000000, 1134.000000}, {204.000000, 1128.000000},
+{73.000000, 1062.000000}, {68.000000, 1059.000000},  {63.000000, 1054.000000},  {61.000000,
+1050.000000}
   };
 
   GPPoint points2[] = {
-      {0.000000, 1000.000000}, {0.000000, 0.000000}, {1000.000000, 0.000000}, {1000.000000, 1000.000000}};
+      {0.000000, 1000.000000}, {0.000000, 0.000000}, {1000.000000, 0.000000}, {1000.000000,
+1000.000000}};
 
   for (int32_t i = sizeof(points) / sizeof(GPPoint) - 1; i >= 0; i--) {
     gp_dllist_push(list1, points[i]);
@@ -383,5 +484,5 @@ int main() {
   GPPolygon pol;
   gp_polygon_init_empty(&pol, 175);
   gp_convex_intersection_area(&polygon1, &corners[0], &intersected, NULL, &pol);
-  printf("%f\n", res);
-}*/
+  printf("%f\n", res); */
+}

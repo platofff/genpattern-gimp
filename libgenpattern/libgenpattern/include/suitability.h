@@ -5,7 +5,7 @@
 #include "polygon.h"
 
 typedef struct {
-  GPPolygon* polygon_buffers;
+  GPPolygon* polygons_buffer;
   float target;
   GPPolygon* polygons;
   int32_t polygons_len;
@@ -16,6 +16,6 @@ typedef struct {
   GPPolygon* ref;
 } GPSParams;
 
-float gp_suitability(GPSParams p);
+float gp_suitability(GPSParams p, GPPolygon* polygons_buffer, GPPolygon** out, int32_t* out_len);
 
 #endif
