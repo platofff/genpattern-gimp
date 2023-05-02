@@ -22,7 +22,7 @@ gp_float gp_suitability(GPSParams p, GPPolygon* polygons_buffer, GPPolygon** out
     pb[*out_len].bounds.xmax = -INFINITY;
     pb[*out_len].bounds.ymax = -INFINITY;
     gp_convex_intersection(&p.canvas_outside_areas[i], &pb[0], &intersected, NULL, &pb[*out_len]);
-    if (intersected) {
+    if (pb[*out_len].size != 0) {
       pb[*out_len].base_offset.x = pb[0].base_offset.x;
       pb[*out_len].base_offset.y = pb[0].base_offset.y;
       gp_wrap_polygon_part(&pb[*out_len], i, p.canvas->bounds.xmax, p.canvas->bounds.ymax);
@@ -34,6 +34,7 @@ gp_float gp_suitability(GPSParams p, GPPolygon* polygons_buffer, GPPolygon** out
     gp_convex_intersection(p.canvas, &pb[0], NULL, NULL, &pb[*out_len]);
     pb++;
     *out = pb;
+    *out_len = *out_len - 1;
   }
 
 

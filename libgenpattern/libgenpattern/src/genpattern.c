@@ -115,18 +115,6 @@ void* _gp_generate_pattern_thrd(void* _data) {
     gp_float res = gp_maximize_suitability(node, params->gp.initial_step, -params->gp.target, &sp,
                                         &out_points[0], &out_len, &out_polygons);
 
-    // TEST
-    /*
-    gp_float res = -10;
-    out_polygons = polygons_buffer + 1;
-    gp_polygon_copy_all(&out_polygons[0], ref);
-    gp_polygon_translate(&out_polygons[0], ref, 17, 56);
-    gp_polygon_copy_all(&out_polygons[1], ref);
-    gp_polygon_copy_all(&out_polygons[2], ref);
-    gp_polygon_copy_all(&out_polygons[3], ref);
-    out_len = 4;*/
-    // /TEST
-
     assert(out_len <= 4);
 
     pthread_mutex_lock(&params->cp.next_work_mtx);
@@ -370,8 +358,8 @@ LIBGENPATTERN_API int gp_init(void) {
   return 0;
 }
 
-#define COL1 2
-#define COL2 2
+#define COL1 10
+#define COL2 20
 
 const uint8_t image1[] = {
     0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00,

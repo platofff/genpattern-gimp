@@ -71,6 +71,14 @@ static inline bool _gp_are_collinear(const GPPoint a, const GPPoint b, const GPP
 // Doesn't compute area
 // Doesn't check array bounds
 void gp_polygon_add_point(GPPolygon* polygon, const GPPoint point) {
+  // ???
+  for (int32_t i = 0; i < polygon->size; i++) {
+    if (gp_fabs(polygon->x_ptr[i] - point.x) < GP_EPSILON &&
+        gp_fabs(polygon->y_ptr[i] - point.y) < GP_EPSILON) {
+      return;
+    }
+  }
+
   polygon->bounds.xmin = GP_MIN(polygon->bounds.xmin, point.x);
   polygon->bounds.ymin = GP_MIN(polygon->bounds.ymin, point.y);
   polygon->bounds.xmax = GP_MAX(polygon->bounds.xmax, point.x);
@@ -92,7 +100,6 @@ void gp_polygon_add_point(GPPolygon* polygon, const GPPoint point) {
   polygon->size++;
 }
 
-
 int gp_polygon_init_empty(GPPolygon* res, int32_t max_size) {
   res->size = 0;
   res->x_ptr = gp_aligned_alloc(64, sizeof(gp_float) * max_size);
@@ -111,8 +118,8 @@ int gp_polygon_init_empty(GPPolygon* res, int32_t max_size) {
 // polygons buffer size must be at least 8
 int gp_canvas_outside_areas(gp_float xres, gp_float yres, GPPolygon* polygons) {
   gp_float mval = GP_MAX(xres, yres);
-  GPBox boxes[8] = {{-mval, 0, 0, yres},         {0, yres, xres, yres + mval},
-                    {0, -mval, xres, 0},         {xres, 0, mval + xres, yres},
+  GPBox boxes[8] = {{-mval, 0, 0, yres},           {0, yres, xres, yres + mval},
+                    {0, -mval, xres, 0},           {xres, 0, mval + xres, yres},
                     {-mval, yres, 0, yres + mval}, {xres, yres, xres + mval, yres + mval},
                     {xres, -mval, xres + mval, 0}, {-mval, -mval, 0, 0}};
 
