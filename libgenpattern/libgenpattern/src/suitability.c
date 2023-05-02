@@ -32,9 +32,11 @@ gp_float gp_suitability(GPSParams p, GPPolygon* polygons_buffer, GPPolygon** out
   }
   if (*out_len > 1) {
     gp_convex_intersection(p.canvas, &pb[0], NULL, NULL, &pb[*out_len]);
+    pb[*out_len].base_offset.x = pb[0].base_offset.x;
+    pb[*out_len].base_offset.y = pb[0].base_offset.y;
     pb++;
     *out = pb;
-    *out_len = *out_len - 1;
+    //*out_len = *out_len - 1;
   }
 
 
@@ -42,7 +44,7 @@ gp_float gp_suitability(GPSParams p, GPPolygon* polygons_buffer, GPPolygon** out
   gp_float res = 0;
 
   for (int32_t j = 0; j < *out_len; j++) {
-    for (int32_t i = 0; i < p.polygons_len; i++) {
+    for (size_t i = 0; i < p.polygons_len; i++) {
       bool _intersected;
       gp_float intersection_area;
       gp_convex_intersection(&pb[j], &p.polygons[i], &_intersected, &intersection_area, NULL);
@@ -63,7 +65,7 @@ gp_float gp_suitability(GPSParams p, GPPolygon* polygons_buffer, GPPolygon** out
   res = -p.target;
 
   for (int32_t j = 0; j < *out_len; j++) {
-    for (int32_t i = 0; i < p.collection_len; i++) {
+    for (size_t i = 0; i < p.collection_len; i++) {
       gp_float dist = -gp_convex_distance(&pb[j], &p.collection[i]);
       res = GP_MAX(res, dist);
     }

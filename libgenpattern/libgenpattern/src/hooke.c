@@ -5,21 +5,21 @@
 #include "polygon_translate.h"
 
 static inline gp_float _gp_f(GPSParams* sp,
-                          GPPolygon* polygons_buffer,
-                          GPPolygon** out,
-                          int32_t* out_len,
-                          gp_float x,
-                          gp_float y) {
+                             GPPolygon* polygons_buffer,
+                             GPPolygon** out,
+                             int32_t* out_len,
+                             gp_float x,
+                             gp_float y) {
   gp_polygon_translate(polygons_buffer, sp->ref, x, y);
   return gp_suitability(*sp, polygons_buffer, out, out_len);
 }
 
 static inline gp_float _gp_f_cached(GPSParams* sp,
-                                 GPSCache* cache,
-                                 gp_float x,
-                                 gp_float y,
-                                 GPPolygon** out,
-                                 int32_t* out_len) {
+                                    GPSCache* cache,
+                                    gp_float x,
+                                    gp_float y,
+                                    GPPolygon** out,
+                                    int32_t* out_len) {
   for (int32_t i = 0; i < GP_HOOKE_CACHE_SIZE; i++) {
     if (i == cache->next && !cache->full) {
       break;
@@ -34,7 +34,7 @@ static inline gp_float _gp_f_cached(GPSParams* sp,
   }
 
   gp_float res = _gp_f(sp, &sp->polygons_buffer[5 * cache->next], &cache->out[cache->next],
-                    &cache->out_len[cache->next], x, y);
+                       &cache->out_len[cache->next], x, y);
   cache->args[cache->next].x = x;
   cache->args[cache->next].y = y;
   cache->results[cache->next] = res;
@@ -102,12 +102,12 @@ static inline GPVector _gp_first_phase(gp_float b1[2],
 }
 
 gp_float gp_maximize_suitability(GPPoint b1,
-                              gp_float step,
-                              gp_float target,
-                              GPSParams* sp,
-                              GPPoint* out,
-                              int32_t* out_len,
-                              GPPolygon** out_polygons) {
+                                 gp_float step,
+                                 gp_float target,
+                                 GPSParams* sp,
+                                 GPPoint* out,
+                                 int32_t* out_len,
+                                 GPPolygon** out_polygons) {
   GPSCache cache = {0};
 
   bool change_steps = false;

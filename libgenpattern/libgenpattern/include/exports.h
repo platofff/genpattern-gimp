@@ -1,7 +1,7 @@
 typedef double gp_float;
 
 #ifdef _WIN32
-#define LIBGENPATTERN_API __declspec(dllexport)
+#define GP_API __declspec(dllexport)
 #else
-#define LIBGENPATTERN_API
+#define GP_API
 #endif

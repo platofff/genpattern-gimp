@@ -1,7 +1,7 @@
 include_directories(include)
 include_directories(test_images)
-#add_library(libgenpattern SHARED
-add_executable(libgenpattern
+add_library(libgenpattern SHARED
+#add_executable(libgenpattern
 			   "src/convex_area.c"
 			   "src/polygon.c"
 			   "src/convex_hull.c"

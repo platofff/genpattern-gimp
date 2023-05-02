@@ -8,12 +8,12 @@
 #define GP_HOOKE_CACHE_SIZE 3
 
 gp_float gp_maximize_suitability(GPPoint b1,
-                              gp_float step,
-                              gp_float target,
-                              GPSParams* sp,
-                              GPPoint* out,
-                              int32_t* out_len,
-                              GPPolygon** out_polygons);
+                                 gp_float step,
+                                 gp_float target,
+                                 GPSParams* sp,
+                                 GPPoint* out,
+                                 int32_t* out_len,
+                                 GPPolygon** out_polygons);
 
 typedef struct {
   GPVector args[GP_HOOKE_CACHE_SIZE];

@@ -19,10 +19,10 @@ typedef union {
     int32_t* max_size;
     //
     GPPolygon* out_polygons;
-    size_t *out_polygons_len;
+    size_t* out_polygons_len;
     GPPolygon** polygon_buffers;
     GPPolygon* collection;
-    int32_t collection_len;
+    size_t collection_len;
     GPVector* grid;
     size_t current;
     gp_float target;
@@ -53,19 +53,17 @@ typedef struct {
   int32_t idx;
 } GPResult;
 
-LIBGENPATTERN_API int gp_init(void);
-
-LIBGENPATTERN_API int gp_genpattern(GPImgAlpha* alphas,
-                                    int32_t* collections_sizes,
-                                    int32_t collections_len,
-                                    int32_t canvas_width,
-                                    int32_t canvas_height,
-                                    uint8_t t,
-                                    int32_t min_dist,
-                                    int32_t grid_resolution,
-                                    uint32_t initial_step,
-                                    size_t threads_num,
-                                    GPResult** out,
-                                    size_t* out_len);
+GP_API int gp_genpattern(GPImgAlpha* alphas,
+                         int32_t* collections_sizes,
+                         int32_t collections_len,
+                         int32_t canvas_width,
+                         int32_t canvas_height,
+                         uint8_t t,
+                         int32_t min_dist,
+                         int32_t grid_resolution,
+                         uint32_t initial_step,
+                         size_t threads_num,
+                         GPResult** out,
+                         size_t* out_len);
 
 #endif

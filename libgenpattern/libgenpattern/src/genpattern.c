@@ -113,7 +113,7 @@ void* _gp_generate_pattern_thrd(void* _data) {
     GPPolygon* out_polygons = NULL;
     int32_t out_len = 0;
     gp_float res = gp_maximize_suitability(node, params->gp.initial_step, -params->gp.target, &sp,
-                                        &out_points[0], &out_len, &out_polygons);
+                                           &out_points[0], &out_len, &out_polygons);
 
     assert(out_len <= 4);
 
@@ -146,18 +146,18 @@ void* _gp_generate_pattern_thrd(void* _data) {
   }
 }
 
-LIBGENPATTERN_API int gp_genpattern(GPImgAlpha* alphas,
-                                    int32_t* collections_sizes,
-                                    int32_t collections_len,
-                                    int32_t canvas_width,
-                                    int32_t canvas_height,
-                                    uint8_t t,
-                                    int32_t min_dist,
-                                    int32_t grid_resolution,
-                                    uint32_t initial_step,
-                                    size_t threads_num,
-                                    GPResult** out,
-                                    size_t* out_len) {
+GP_API int gp_genpattern(GPImgAlpha* alphas,
+                         int32_t* collections_sizes,
+                         int32_t collections_len,
+                         int32_t canvas_width,
+                         int32_t canvas_height,
+                         uint8_t t,
+                         int32_t min_dist,
+                         int32_t grid_resolution,
+                         uint32_t initial_step,
+                         size_t threads_num,
+                         GPResult** out,
+                         size_t* out_len) {
   int exitcode = 0;
   GPParams work = {0};
   *out_len = 0;
@@ -334,18 +334,20 @@ LIBGENPATTERN_API int gp_genpattern(GPImgAlpha* alphas,
   for (int32_t i = 0; i < pics_len; i++) {
     gp_polygon_free(&work.gp.polygons[i]);
   }
+  free(work.gp.polygons);
+
   for (size_t i = 0; i < threads_num; i++) {
     for (int32_t j = 0; j < 5 * GP_HOOKE_CACHE_SIZE; j++) {
       gp_polygon_free(&work.gp.polygon_buffers[i][j]);
     }
     gp_aligned_free(work.gp.polygon_buffers[i]);
   }
+  free(work.gp.polygon_buffers);
+
   for (int32_t i = 0; i < 8; i++) {
     gp_polygon_free(&canvas_outside_areas[i]);
   }
   free(work.gp.grid);
-  free(work.gp.polygons);
-  free(work.gp.polygon_buffers);
   free(threads_data);
   pthread_mutex_destroy(&work.gp.next_work_mtx);
   free(threads);
@@ -353,11 +355,7 @@ LIBGENPATTERN_API int gp_genpattern(GPImgAlpha* alphas,
   return exitcode;
 }
 
-LIBGENPATTERN_API int gp_init(void) {
-  srand(56);
-  return 0;
-}
-
+/*
 #define COL1 30
 #define COL2 20
 
@@ -480,5 +478,6 @@ int main() {
   GPPolygon pol;
   gp_polygon_init_empty(&pol, 175);
   gp_convex_intersection_area(&polygon1, &corners[0], &intersected, NULL, &pol);
-  printf("%f\n", res); */
+  printf("%f\n", res);
 }
+*/
