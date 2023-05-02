@@ -11,9 +11,9 @@ void gp_polygon_free(GPPolygon* p) {
 }
 
 int gp_box_to_polygon(GPBox* box, GPPolygon* polygon) {
-  polygon->x_ptr = gp_aligned_alloc(32, 4 * sizeof(gp_float));
+  polygon->x_ptr = gp_aligned_alloc(64, 4 * sizeof(gp_float));
   GP_CHECK_ALLOC(polygon->x_ptr);
-  polygon->y_ptr = gp_aligned_alloc(32, 4 * sizeof(gp_float));
+  polygon->y_ptr = gp_aligned_alloc(64, 4 * sizeof(gp_float));
   GP_CHECK_ALLOC(polygon->y_ptr);
   polygon->size = 4;
 
@@ -95,9 +95,9 @@ void gp_polygon_add_point(GPPolygon* polygon, const GPPoint point) {
 
 int gp_polygon_init_empty(GPPolygon* res, int32_t max_size) {
   res->size = 0;
-  res->x_ptr = gp_aligned_alloc(32, sizeof(gp_float) * max_size);
+  res->x_ptr = gp_aligned_alloc(64, sizeof(gp_float) * max_size);
   GP_CHECK_ALLOC(res->x_ptr);
-  res->y_ptr = gp_aligned_alloc(32, sizeof(gp_float) * max_size);
+  res->y_ptr = gp_aligned_alloc(64, sizeof(gp_float) * max_size);
   GP_CHECK_ALLOC(res->y_ptr);
   res->bounds.xmin = INFINITY;
   res->bounds.ymin = INFINITY;

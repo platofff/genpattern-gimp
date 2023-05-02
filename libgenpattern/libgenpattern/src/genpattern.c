@@ -73,7 +73,7 @@ void* _gp_convex_polygon_thrd(void* _data) {
 static inline int _gp_polygons_buffer_alloc(const size_t buf_size,
                                             const size_t max_points,
                                             GPPolygon** res) {
-  *res = malloc(sizeof(GPPolygon) * buf_size);
+  *res = gp_aligned_alloc(64, sizeof(GPPolygon) * buf_size);
   GP_CHECK_ALLOC(res);
   for (int32_t i = 0; i < buf_size; i++) {
     gp_polygon_init_empty(&(*res)[i], max_points);
@@ -86,7 +86,7 @@ void* _gp_generate_pattern_thrd(void* _data) {
   GPParams* params = data->params;
 
   GPPolygon* ref = &params->gp.polygons[params->gp.current];
-  GPPolygon* polygons_buffer = &params->gp.polygon_buffers[5 * data->thread_id];
+  GPPolygon* polygons_buffer = params->gp.polygon_buffers[data->thread_id];
 
   for (int32_t i = 0; i < GP_HOOKE_CACHE_SIZE * 5; i++) {
     gp_polygon_copy(&polygons_buffer[i], ref);
@@ -265,10 +265,15 @@ LIBGENPATTERN_API int gp_genpattern(GPImgAlpha* alphas,
   over to the opposite sides of the canvas. This guarantees that the algorithm can
   appropriately manage polygons that wrap around the canvas edges.
   */
-  exitcode = _gp_polygons_buffer_alloc((size_t)5 * GP_HOOKE_CACHE_SIZE * threads_num,
-                                       *work.gp.max_size, &work.gp.polygon_buffers);
-  if (exitcode != 0) {
-    return exitcode;
+  work.gp.polygon_buffers = malloc(sizeof(GPPolygon*) * threads_num);
+  GP_CHECK_ALLOC(work.gp.polygon_buffers);
+
+  for (int32_t i = 0; i < threads_num; i++) {
+    exitcode = _gp_polygons_buffer_alloc((size_t)5 * GP_HOOKE_CACHE_SIZE, *work.gp.max_size,
+                                         &work.gp.polygon_buffers[i]);
+    if (exitcode != 0) {
+      return exitcode;
+    }
   }
 
   // out_polygons buffer to store already placed parts
@@ -341,8 +346,11 @@ LIBGENPATTERN_API int gp_genpattern(GPImgAlpha* alphas,
   for (int32_t i = 0; i < pics_len; i++) {
     gp_polygon_free(&work.gp.polygons[i]);
   }
-  for (size_t i = 0; i < (size_t)5 * GP_HOOKE_CACHE_SIZE * threads_num; i++) {
-    gp_polygon_free(&work.gp.polygon_buffers[i]);
+  for (size_t i = 0; i < threads_num; i++) {
+    for (int32_t j = 0; j < 5 * GP_HOOKE_CACHE_SIZE; j++) {
+      gp_polygon_free(&work.gp.polygon_buffers[i][j]);
+    }
+    gp_aligned_free(work.gp.polygon_buffers[i]);
   }
   for (int32_t i = 0; i < 8; i++) {
     gp_polygon_free(&canvas_outside_areas[i]);

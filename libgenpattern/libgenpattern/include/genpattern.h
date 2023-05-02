@@ -20,7 +20,7 @@ typedef union {
     //
     GPPolygon* out_polygons;
     size_t *out_polygons_len;
-    GPPolygon* polygon_buffers;
+    GPPolygon** polygon_buffers;
     GPPolygon* collection;
     int32_t collection_len;
     GPVector* grid;
