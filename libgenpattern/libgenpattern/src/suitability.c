@@ -32,11 +32,12 @@ gp_float gp_suitability(GPSParams p, GPPolygon* polygons_buffer, GPPolygon** out
   }
   if (*out_len > 1) {
     gp_convex_intersection(p.canvas, &pb[0], NULL, NULL, &pb[*out_len]);
-    pb[*out_len].base_offset.x = pb[0].base_offset.x;
-    pb[*out_len].base_offset.y = pb[0].base_offset.y;
-    pb++;
-    *out = pb;
-    //*out_len = *out_len - 1;
+    if (pb[*out_len].size != 0) {
+      pb[*out_len].base_offset.x = pb[0].base_offset.x;
+      pb[*out_len].base_offset.y = pb[0].base_offset.y;
+      pb++;
+      *out = pb;
+    }
   }
 
 
