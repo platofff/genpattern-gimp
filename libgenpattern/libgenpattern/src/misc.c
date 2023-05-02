@@ -5,7 +5,7 @@
 #include "misc.h"
 
 static inline int32_t _gp_lrand(void) {
-#if RAND_MAX < 0x7FFFFFFF
+#if RAND_GP_MAX < 0x7FFFFFFF
   int32_t r = rand() & 0x7FFF;
   r = (r << 15) | (rand() & 0x7FFF);
   return r | ((rand() & 1) << 30);
@@ -25,7 +25,7 @@ void gp_array_shuffle(void* _arr, void* _tmp, size_t sz, int32_t len) {
   }
 }
 
-int gp_grid_init(float x, float y, float resolution, GPVector** grid, size_t* len) {
+int gp_grid_init(gp_float x, gp_float y, gp_float resolution, GPVector** grid, size_t* len) {
   size_t n = x / resolution;
   size_t m = y / resolution;
   *len = m * n;

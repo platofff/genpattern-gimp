@@ -112,12 +112,12 @@ void* _gp_generate_pattern_thrd(void* _data) {
     GPPoint out_points[4] = {0};
     GPPolygon* out_polygons = NULL;
     int32_t out_len = 0;
-    float res = gp_maximize_suitability(node, params->gp.initial_step, -params->gp.target, &sp,
+    gp_float res = gp_maximize_suitability(node, params->gp.initial_step, -params->gp.target, &sp,
                                         &out_points[0], &out_len, &out_polygons);
 
     // TEST
     /*
-    float res = -10.f;
+    gp_float res = -10;
     out_polygons = polygons_buffer + 1;
     gp_polygon_copy_all(&out_polygons[0], ref);
     gp_polygon_translate(&out_polygons[0], ref, 17, 56);
@@ -190,7 +190,7 @@ LIBGENPATTERN_API int gp_genpattern(GPImgAlpha* alphas,
   work.cp.alphas = alphas;
   work.cp.t = t;
 
-  GPBox canvas_box = {.xmin = 0.f, .ymin = 0.f, .xmax = canvas_width, .ymax = canvas_height};
+  GPBox canvas_box = {.xmin = 0, .ymin = 0, .xmax = canvas_width, .ymax = canvas_height};
   exitcode = gp_box_to_polygon(&canvas_box, &work.cp.canvas_polygon);
   if (exitcode != 0) {
     return exitcode;
@@ -206,7 +206,7 @@ LIBGENPATTERN_API int gp_genpattern(GPImgAlpha* alphas,
     }
   }
 
-  size_t cp_threads_size = MIN(threads_num, pics_len);
+  size_t cp_threads_size = GP_MIN(threads_num, pics_len);
   size_t next_work = pics_len > cp_threads_size ? cp_threads_size : 0;
   work.cp.next_work = &next_work;
 
@@ -293,7 +293,7 @@ LIBGENPATTERN_API int gp_genpattern(GPImgAlpha* alphas,
   int32_t collection_id = 0,
           polygon_id = 0;  // last processed polygon
   work.gp.collection_len = 0;
-  int32_t start_work = MIN(threads_num, grid_len);
+  int32_t start_work = GP_MIN(threads_num, grid_len);
 
   GPPolygon canvas_outside_areas[8] = {0};
   exitcode = gp_canvas_outside_areas(canvas_width, canvas_height, &canvas_outside_areas[0]);
@@ -362,8 +362,8 @@ LIBGENPATTERN_API int gp_init(void) {
   return 0;
 }
 
-#define COL1 10
-#define COL2 10
+#define COL1 2
+#define COL2 2
 
 const uint8_t image1[] = {
     0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x00,
@@ -480,7 +480,7 @@ int main() {
 
   bool intersected = false;
 
-  float res;
+  gp_float res;
   GPPolygon pol;
   gp_polygon_init_empty(&pol, 175);
   gp_convex_intersection_area(&polygon1, &corners[0], &intersected, NULL, &pol);

@@ -6,7 +6,7 @@
 
 typedef struct {
   GPPolygon* polygons_buffer;
-  float target;
+  gp_float target;
   GPPolygon* polygons;
   int32_t polygons_len;
   GPPolygon* collection;
@@ -16,6 +16,6 @@ typedef struct {
   GPPolygon* ref;
 } GPSParams;
 
-float gp_suitability(GPSParams p, GPPolygon* polygons_buffer, GPPolygon** out, int32_t* out_len);
+gp_float gp_suitability(GPSParams p, GPPolygon* polygons_buffer, GPPolygon** out, int32_t* out_len);
 
 #endif

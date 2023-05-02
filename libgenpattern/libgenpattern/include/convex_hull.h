@@ -5,6 +5,7 @@
 #include <stdlib.h>
 
 #include "polygon.h"
+#include "exports.h"
 
 typedef struct {
   size_t width;

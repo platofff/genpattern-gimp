@@ -1,5 +1,6 @@
 #include "convex_hull.h"
 #include "doubly_linked_list.h"
+#include "misc.h"
 
 #ifdef __AVX2__
 #include <immintrin.h>
@@ -22,7 +23,7 @@ static inline void _gp_convex_hull(GPDList** seq) {
   while (1) {
     GPDLElement *next = el->next, *nextnext = next->next;
     GPPoint *e = &el->value, *e1 = &next->value, *e2 = &nextnext->value;
-    float p = (e1->y - e->y) * (e2->x - e1->x) - (e1->x - e->x) * (e2->y - e1->y);
+    gp_float p = (e1->y - e->y) * (e2->x - e1->x) - (e1->x - e->x) * (e2->y - e1->y);
     if (p > 0) {
       if ((nextnext->next)->next == NULL) {
         break;

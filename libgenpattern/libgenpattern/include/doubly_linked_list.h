@@ -4,6 +4,7 @@
 #include <stdlib.h>
 
 #include "polygon.h"
+#include "misc.h"
 
 typedef struct GPDLElement {
   struct GPDLElement* prev;

@@ -3,6 +3,6 @@
 
 #include "polygon.h"
 
-float gp_convex_distance(GPPolygon* polygon1, GPPolygon* polygon2);
+gp_float gp_convex_distance(GPPolygon* polygon1, GPPolygon* polygon2);
 
 #endif

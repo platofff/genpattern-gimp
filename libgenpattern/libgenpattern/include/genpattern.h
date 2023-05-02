@@ -25,8 +25,8 @@ typedef union {
     int32_t collection_len;
     GPVector* grid;
     size_t current;
-    float target;
-    float initial_step;
+    gp_float target;
+    gp_float initial_step;
     GPPolygon* canvas_outside_areas;
   } gp;
   struct {

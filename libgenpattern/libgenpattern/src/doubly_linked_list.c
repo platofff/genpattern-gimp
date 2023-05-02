@@ -1,7 +1,6 @@
 #include <math.h>
 
 #include "doubly_linked_list.h"
-#include "misc.h"
 #include "polygon_translate.h"
 #include "convex_area.h"
 

@@ -8,7 +8,7 @@
 #include "suitability.h"
 
 
-float gp_suitability(GPSParams p, GPPolygon* polygons_buffer, GPPolygon** out, int32_t* out_len) {
+gp_float gp_suitability(GPSParams p, GPPolygon* polygons_buffer, GPPolygon** out, int32_t* out_len) {
   *out_len = 1;
 
   GPPolygon* pb = polygons_buffer;
@@ -38,17 +38,17 @@ float gp_suitability(GPSParams p, GPPolygon* polygons_buffer, GPPolygon** out, i
 
 
   bool intersected = false;
-  float res = 0.f;
+  gp_float res = 0;
 
   for (int32_t j = 0; j < *out_len; j++) {
     for (int32_t i = 0; i < p.polygons_len; i++) {
       bool _intersected;
-      float intersection_area;
+      gp_float intersection_area;
       gp_convex_intersection(&pb[j], &p.polygons[i], &_intersected, &intersection_area, NULL);
       if (_intersected) {
         if (!intersected) {
           intersected = true;
-          res = 0.f;
+          res = 0;
         }
         res += intersection_area;
       }
@@ -63,8 +63,8 @@ float gp_suitability(GPSParams p, GPPolygon* polygons_buffer, GPPolygon** out, i
 
   for (int32_t j = 0; j < *out_len; j++) {
     for (int32_t i = 0; i < p.collection_len; i++) {
-      float dist = -gp_convex_distance(&pb[j], &p.collection[i]);
-      res = MAX(res, dist);
+      gp_float dist = -gp_convex_distance(&pb[j], &p.collection[i]);
+      res = GP_MAX(res, dist);
     }
   }
 

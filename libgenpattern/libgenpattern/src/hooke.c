@@ -4,20 +4,20 @@
 #include "misc.h"
 #include "polygon_translate.h"
 
-static inline float _gp_f(GPSParams* sp,
+static inline gp_float _gp_f(GPSParams* sp,
                           GPPolygon* polygons_buffer,
                           GPPolygon** out,
                           int32_t* out_len,
-                          float x,
-                          float y) {
+                          gp_float x,
+                          gp_float y) {
   gp_polygon_translate(polygons_buffer, sp->ref, x, y);
   return gp_suitability(*sp, polygons_buffer, out, out_len);
 }
 
-static inline float _gp_f_cached(GPSParams* sp,
+static inline gp_float _gp_f_cached(GPSParams* sp,
                                  GPSCache* cache,
-                                 float x,
-                                 float y,
+                                 gp_float x,
+                                 gp_float y,
                                  GPPolygon** out,
                                  int32_t* out_len) {
   for (int32_t i = 0; i < GP_HOOKE_CACHE_SIZE; i++) {
@@ -33,7 +33,7 @@ static inline float _gp_f_cached(GPSParams* sp,
     }
   }
 
-  float res = _gp_f(sp, &sp->polygons_buffer[5 * cache->next], &cache->out[cache->next],
+  gp_float res = _gp_f(sp, &sp->polygons_buffer[5 * cache->next], &cache->out[cache->next],
                     &cache->out_len[cache->next], x, y);
   cache->args[cache->next].x = x;
   cache->args[cache->next].y = y;
@@ -54,25 +54,25 @@ static inline float _gp_f_cached(GPSParams* sp,
   return res;
 }
 
-static inline GPVector _gp_first_phase(float b1[2],
-                                       float* steps,
+static inline GPVector _gp_first_phase(gp_float b1[2],
+                                       gp_float* steps,
                                        bool* change_steps,
                                        GPSParams* sp,
                                        GPSCache* cache,
-                                       float* res) {
-  float r1 = _gp_f_cached(sp, cache, b1[0], b1[1], NULL, NULL);
-  float b2[2] = {b1[0], b1[1]};
-  float r2 = r1;
+                                       gp_float* res) {
+  gp_float r1 = _gp_f_cached(sp, cache, b1[0], b1[1], NULL, NULL);
+  gp_float b2[2] = {b1[0], b1[1]};
+  gp_float r2 = r1;
   while (b1[0] == b2[0] && b1[1] == b2[1]) {
     for (int i = 0; i < 2; i++) {
       if (steps[i] < GP_HOOKE_ACCURACY) {
         continue;
       }
-      float b[2] = {b2[0], b2[1]};
+      gp_float b[2] = {b2[0], b2[1]};
       b[i] += steps[i];
-      float forward = _gp_f_cached(sp, cache, b[0], b[1], NULL, NULL);
+      gp_float forward = _gp_f_cached(sp, cache, b[0], b[1], NULL, NULL);
       b[i] = b2[i] - steps[i];
-      float backward = _gp_f_cached(sp, cache, b[0], b[1], NULL, NULL);
+      gp_float backward = _gp_f_cached(sp, cache, b[0], b[1], NULL, NULL);
       if (r1 <= forward && r1 <= backward) {
         if (*change_steps) {
           steps[i] = (int32_t)steps[i] / 2;
@@ -101,9 +101,9 @@ static inline GPVector _gp_first_phase(float b1[2],
   return (GPVector){b2[0], b2[1]};
 }
 
-float gp_maximize_suitability(GPPoint b1,
-                              float step,
-                              float target,
+gp_float gp_maximize_suitability(GPPoint b1,
+                              gp_float step,
+                              gp_float target,
                               GPSParams* sp,
                               GPPoint* out,
                               int32_t* out_len,
@@ -111,11 +111,11 @@ float gp_maximize_suitability(GPPoint b1,
   GPSCache cache = {0};
 
   bool change_steps = false;
-  float res2;
-  float steps[2] = {step, step};
+  gp_float res2;
+  gp_float steps[2] = {step, step};
   while (true) {
     bool stop;
-    GPPoint b2 = _gp_first_phase((float[2]){b1.x, b1.y}, steps, &stop, sp, &cache, &res2);
+    GPPoint b2 = _gp_first_phase((gp_float[2]){b1.x, b1.y}, steps, &stop, sp, &cache, &res2);
 
     *out = b2;
     return _gp_f_cached(sp, &cache, out->x, out->y, out_polygons, out_len);
@@ -126,10 +126,10 @@ float gp_maximize_suitability(GPPoint b1,
     }
 
     while (true) {
-      GPVector b3 = {.x = b1.x + 2.f * (b2.x - b1.x), .y = b1.y + 2.f * (b2.y - b1.y)};
-      float res4;
+      GPVector b3 = {.x = b1.x + 2 * (b2.x - b1.x), .y = b1.y + 2 * (b2.y - b1.y)};
+      gp_float res4;
       GPVector b4 =
-          _gp_first_phase((float[2]){b3.x, b3.y}, steps, &change_steps, sp, &cache, &res4);
+          _gp_first_phase((gp_float[2]){b3.x, b3.y}, steps, &change_steps, sp, &cache, &res4);
 
       res2 = _gp_f_cached(sp, &cache, b2.x, b2.y, NULL, NULL);
       if (res2 > res4) {

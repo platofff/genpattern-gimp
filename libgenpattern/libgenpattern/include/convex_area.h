@@ -3,6 +3,6 @@
 
 #include "polygon.h"
 
-float gp_convex_area(GPPolygon* polygon);
+gp_float gp_convex_area(GPPolygon* polygon);
 
 #endif
