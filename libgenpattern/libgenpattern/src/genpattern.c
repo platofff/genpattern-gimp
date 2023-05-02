@@ -101,8 +101,8 @@ void* _gp_generate_pattern_thrd(void* _data) {
     }
     GPSParams sp = {polygons_buffer,
                     params->gp.target,
-                    params->gp.polygons,
-                    params->gp.current,
+                    params->gp.out_polygons,
+                    *params->gp.out_polygons_len,
                     params->gp.collection,
                     params->gp.collection_len,
                     &params->gp.canvas_polygon,
@@ -358,7 +358,7 @@ LIBGENPATTERN_API int gp_init(void) {
   return 0;
 }
 
-#define COL1 10
+#define COL1 30
 #define COL2 20
 
 const uint8_t image1[] = {
